@@ -250,13 +250,16 @@ with tabs[4]:
                   FROM koristenje_opreme kk
                  WHERE kk.projekt_id = p.id AND kk.status = 'odobreno'
                    AND kk.vrijeme_od::date BETWEEN %s AND %s),
-               (SELECT count(*) FROM uzorci u WHERE u.projekt_id = p.id)
+               (SELECT count(*) FROM uzorci u WHERE u.projekt_id = p.id),
+               (SELECT string_agg(o.ime_prezime, ', ' ORDER BY o.ime_prezime)
+                  FROM projekt_suradnici ps JOIN osoblje o ON o.id = ps.osoblje_id
+                 WHERE ps.projekt_id = p.id AND ps.uloga = 'suradnik')
         FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
         WHERE p.vrsta = 'istrazivacki' AND p.status_odobrenja = 'odobreno'
         ORDER BY p.oznaka;""", (od, do, od, do))
     d = df(ip, ["id", "Oznaka", "Akronim", "Naziv", "Financijer", "Voditelj", "Status",
                 "Pocetak", "Zavrsetak", "Nabavljeno opreme", "Koristenja", "Sati",
-                "Uzoraka"])
+                "Uzoraka", "Suradnici"])
     if d.empty:
         st.info("Nema odobrenih istrazivackih projekata.")
     else:

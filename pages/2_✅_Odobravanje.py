@@ -17,7 +17,7 @@ from auth import trazi_prijavu
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
 prikazi_verziju()
 
-# 🔒 samo voditelj/laborant
+# 🔒 samo administrator
 tko = trazi_prijavu("Odobravanje")
 
 
@@ -45,7 +45,10 @@ def odluci(zid, novi_status, tko):
 def projekti_na_cekanju():
     return fetch("""
         SELECT p.id, p.oznaka, p.akronim, p.naziv, p.sifra, k.naziv, p.voditelj,
-               p.datum_pocetka, p.datum_zavrsetka, p.opis, p.predlozio
+               p.datum_pocetka, p.datum_zavrsetka, p.opis, p.predlozio,
+               (SELECT string_agg(o.ime_prezime, ', ' ORDER BY o.ime_prezime)
+                  FROM projekt_suradnici ps JOIN osoblje o ON o.id = ps.osoblje_id
+                 WHERE ps.projekt_id = p.id AND ps.uloga = 'suradnik')
         FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
         WHERE p.vrsta = 'istrazivacki' AND p.status_odobrenja = 'na_cekanju'
         ORDER BY p.id;""")
@@ -157,7 +160,7 @@ with tab_ip:
     else:
         st.caption(f"Na cekanju: **{len(lista_ip)}**")
 
-    for (pid, ozn, akr, naziv, sifra, fin, vod, d_od, d_do, opis, predl) in lista_ip:
+    for (pid, ozn, akr, naziv, sifra, fin, vod, d_od, d_do, opis, predl, sur) in lista_ip:
         with st.container(border=True):
             st.markdown(f"**{akr or ozn}** — {naziv}")
             c1, c2 = st.columns(2)
@@ -165,6 +168,7 @@ with tab_ip:
             c1.write(f"👤 Voditelj: **{vod or '—'}**")
             c1.write(f"✍️ Predlozio: {predl or '—'}")
             c2.write(f"📅 Trajanje: {d_od or '?'} – {d_do or '?'}")
+            c2.write(f"👥 Suradnici: {sur or '—'}")
             if opis:
                 st.caption(f"📝 {opis}")
 

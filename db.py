@@ -28,8 +28,9 @@ def lokalno(dt):
 #    zakrpa (1.0.X) -> popravak sitnice
 #    manja  (1.X.0) -> nova funkcija / stranica
 #    glavna (X.0.0) -> veca promjena strukture baze
+#  0.x.x = razvojna faza; 1.0.0 = sluzbena, javna verzija
 # ---------------------------------------------------------------
-VERZIJA = "1.7.0"
+VERZIJA = "0.8.0"
 DATUM_VERZIJE = "2026-10-07"
 
 

@@ -1,11 +1,13 @@
-"""Prijedlog istrazivackog projekta — osoba iz 'osoblje' predlaze, voditelj/laborant odobrava.
+"""Prijedlog istrazivackog projekta — predlaze administrator ili osoba u znanstveno-nastavnom
+zvanju (prijava obavezna); odobrava administrator na stranici Odobravanje.
 
 Upis ide u 'projekti' (vrsta='istrazivacki', status_odobrenja='na_cekanju').
 Klijent = financijer (HRZZ, NPOO, JICA ...), obicno tipa 'interni'.
 Nakon odobrenja projekt se moze birati u Prijemu uzorka, Zahtjevu za opremu
 i Unosu opreme (projekt nabave = akronim).
 Strucni posao za klijenta otvara se na stranici Novi posao.
-Stranica je otvorena (bez prijave), kao Zahtjev za opremu.
+Voditelj mora imati znanstveno-nastavno zvanje. Voditelj i suradnici upisuju se
+u projekt_suradnici (osnova za buduci dnevnik koristenja opreme na projektu).
 """
 import os, sys
 
@@ -13,15 +15,20 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada
+from auth import trazi_prijavu
 
 st.set_page_config(page_title="Istrazivacki projekt", page_icon="🗂️")
 prikazi_verziju()
 
+# 🔒 administrator ili znanstveno-nastavno zvanje
+tko = trazi_prijavu("Prijedlog projekta", razina="projekti")
+
 
 @st.cache_data(ttl=300)
 def ucitaj_osoblje():
-    return [r[0] for r in fetch(
-        "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;")]
+    """(id, ime, znanstveno_zvanje) aktivnog osoblja."""
+    return fetch("""SELECT id, ime_prezime, znanstveno_zvanje FROM osoblje
+                    WHERE aktivan = TRUE ORDER BY ime_prezime;""")
 
 
 @st.cache_data(ttl=120)
@@ -39,7 +46,7 @@ def ucitaj_projekte():
                     ORDER BY p.id DESC;""")
 
 
-def spremi(d, klijent_id, nk_naziv):
+def spremi(d, klijent_id, nk_naziv, voditelj_id, suradnici_ids):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -64,6 +71,13 @@ def spremi(d, klijent_id, nk_naziv):
                  d["voditelj"], d["od"], d["do"], d["opis"], d["predlozio"],
                  sada().date()))
             pid = cur.fetchone()[0]
+            cur.execute("""INSERT INTO projekt_suradnici (projekt_id, osoblje_id, uloga)
+                           VALUES (%s,%s,'voditelj');""", (pid, voditelj_id))
+            for oid in suradnici_ids:
+                cur.execute("""INSERT INTO projekt_suradnici (projekt_id, osoblje_id, uloga)
+                               VALUES (%s,%s,'suradnik')
+                               ON CONFLICT (projekt_id, osoblje_id) DO NOTHING;""",
+                            (pid, oid))
         conn.commit()
         return pid
     finally:
@@ -84,8 +98,10 @@ except Exception as e:
     st.caption(f"Detalj: {e}")
     st.stop()
 
-if not osobe:
-    st.warning("Nema aktivnog osoblja u bazi — javi voditelju laboratorija.")
+voditelji = [o for o in osobe if o[2]]
+if not voditelji:
+    st.warning("Nitko u tablici osoblje nema oznaceno znanstveno-nastavno zvanje "
+               "(stupac znanstveno_zvanje) — javi voditelju laboratorija.")
     st.stop()
 
 if postojeci:
@@ -96,7 +112,8 @@ if postojeci:
                       for (o, a, k, s, v) in postojeci],
                      use_container_width=True, hide_index=True)
 
-predlozio = st.selectbox("Predlaze", osobe)
+predlozio = tko
+st.caption(f"Predlaze: **{tko}**")
 
 st.subheader("Projekt")
 c1, c2 = st.columns([1, 2])
@@ -122,9 +139,18 @@ oznaka = c2.text_input("Predlozena oznaka", placeholder="npr. NPOO-2026-REMOK",
                        help="Ako ostane prazno, predlaze se FINANCIJER-GODINA-AKRONIM. "
                             "Konacnu oznaku potvrduje tko odobrava.")
 
-vi = st.selectbox("Voditelj projekta", range(len(osobe)), format_func=lambda i: osobe[i],
-                  index=osobe.index(predlozio))
-voditelj = osobe[vi]
+imena_vod = [o[1] for o in voditelji]
+vi = st.selectbox("Voditelj projekta *", range(len(voditelji)),
+                  format_func=lambda i: imena_vod[i],
+                  index=imena_vod.index(tko) if tko in imena_vod else 0,
+                  help="Samo osoblje u znanstveno-nastavnom zvanju (doc., izv. prof., prof.).")
+voditelj_id, voditelj = voditelji[vi][0], voditelji[vi][1]
+
+ostali = [o for o in osobe if o[0] != voditelj_id]
+sur_idx = st.multiselect("Suradnici na projektu", range(len(ostali)),
+                         format_func=lambda i: ostali[i][1],
+                         help="Suradnici ce moci unositi koristenje opreme na ovom projektu.")
+suradnici = [ostali[i] for i in sur_idx]
 
 c1, c2 = st.columns(2)
 ima_od = c1.checkbox("Datum pocetka")
@@ -157,9 +183,11 @@ if st.button("📨 Posalji prijedlog", type="primary"):
              "od": datum_od, "do": datum_do, "opis": opis.strip() or None,
              "predlozio": predlozio}
         try:
-            pid = spremi(d, klijent_id, nk_naziv.strip())
+            pid = spremi(d, klijent_id, nk_naziv.strip(), voditelj_id,
+                         [o[0] for o in suradnici])
             st.session_state["prijedlog_ip"] = {
                 **d, "id": pid, "financijer": fin_txt.strip(),
+                "suradnici": ", ".join(o[1] for o in suradnici) or "—",
                 "trajanje": f"{datum_od or '?'} – {datum_do or '?'}"}
             st.cache_data.clear()
             st.success(f"✅ Prijedlog {konacna} je poslan i ceka odobrenje.")
@@ -188,7 +216,8 @@ elif st.button("📧 Posalji e-mail voditelju i laborantu"):
                  contents=(f"Prijedlog istrazivackog projekta {p['oznaka']}.\n\n"
                            f"Akronim: {p['akronim']}\nNaziv: {p['naziv']}\n"
                            f"Financijer: {p['financijer']}  ·  sifra: {p['sifra'] or '—'}\n"
-                           f"Voditelj: {p['voditelj']}\nTrajanje: {p['trajanje']}\n"
+                           f"Voditelj: {p['voditelj']}\nSuradnici: {p['suradnici']}\n"
+                           f"Trajanje: {p['trajanje']}\n"
                            f"Predlozio: {p['predlozio']}\nOpis: {p['opis'] or '—'}\n\n"
                            f"Odobrite na stranici Odobravanje."))
         st.success(f"📤 Poslano na: {', '.join(rec)}")
