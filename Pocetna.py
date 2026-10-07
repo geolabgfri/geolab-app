@@ -54,6 +54,16 @@ except Exception as e:
     st.info("Pregled trenutno nije dostupan.")
     st.caption(f"Detalj: {e}")
 
+try:
+    prijedlozi = fetch(
+        "SELECT count(*) FROM prijedlozi_projekata WHERE status = 'na_cekanju';"
+    )[0][0]
+    if prijedlozi:
+        st.warning(f"🗂️ {prijedlozi} prijedlog(a) projekta ceka odobrenje "
+                   f"— vidi stranicu **Odobravanje**.")
+except Exception:
+    pass  # tablica jos nije napravljena (sql/1.6.0_prijedlozi_projekata.sql)
+
 st.divider()
 st.markdown(
     """
@@ -63,7 +73,8 @@ st.markdown(
 |---|---|---|
 | 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja | 🌐 svi |
 | 🛠️ Prijava kvara | prijava kvara uredaja ili komponente | 🌐 svi |
-| ✅ Odobravanje | odobravanje / odbijanje zahtjeva | 🔒 prijava |
+| 🗂️ Prijedlog projekta | osoblje predlaze projekt (ceka odobrenje) | 🌐 svi |
+| ✅ Odobravanje | odobravanje / odbijanje zahtjeva i prijedloga projekata | 🔒 prijava |
 | 📥 Prijem uzorka | zaprimanje uzorka | 🔒 prijava |
 | ➕ Unos opreme | dodavanje uredaja u inventar | 🔒 prijava |
 | 🔧 Rjesavanje kvarova | zatvaranje kvara, povratak u upotrebu | 🔒 prijava |

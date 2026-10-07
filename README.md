@@ -6,13 +6,19 @@ Streamlit aplikacija povezana sa Supabase (PostgreSQL) bazom.
 | Stranica | Čemu služi |
 |---|---|
 | 📨 Zahtjev za opremu | podnošenje zahtjeva za korištenje uređaja |
-| ✅ Odobravanje | voditelj/laborant odobrava ili odbija zahtjeve |
+| ✅ Odobravanje | voditelj/laborant odobrava ili odbija zahtjeve za opremu i prijedloge projekata |
 | 📥 Prijem uzorka | zaprimanje uzorka (projekt/klijent po potrebi u letu) |
 | 🛠️ Prijava kvara | brza prijava kvara — uređaj ide `u_servisu` |
 | ➕ Unos opreme | dodavanje novog uređaja u inventar |
 | 🔧 Rješavanje kvarova | zatvaranje kvara — uređaj se vraća `u_uporabi` |
 | 📝 Novi posao | otvaranje/dopuna posla: upit → ponuda → narudžbenica → izvještaj |
 | 📊 Pregledi | iskorištenost opreme, poslovi, uzorci, kvarovi (+ izvoz CSV) |
+| 🗂️ Prijedlog projekta | osoba iz `osoblje` predlaže projekt; otvara se tek nakon odobrenja |
+
+## Promjene baze
+SQL skripte su u mapi `sql/`, nazvane po verziji. Pokreću se jednom u
+Supabase → SQL Editor, **prije** objave te verzije aplikacije.
+- `sql/1.6.0_prijedlozi_projekata.sql` — tablica `prijedlozi_projekata`
 
 ## Pokretanje (Streamlit Cloud)
 1. Sadržaj ove mape stavi u **korijen** GitHub repozitorija.

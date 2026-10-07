@@ -10,6 +10,16 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 1.6.0 — 2026-10-07
+- Nova stranica **🗂️ Prijedlog projekta** (bez prijave) — osoba s popisa
+  `osoblje` predlaže projekt: naziv, predložena oznaka, gradilište, opis,
+  klijent postojeći ili novi; prijedlog ide u `prijedlozi_projekata` sa statusom `na_cekanju`
+- **✅ Odobravanje** podijeljeno na kartice: *Zahtjevi za opremu* i *Prijedlozi projekata*;
+  pri odobrenju se određuje konačna oznaka, projekt se otvara u `projekti`
+  (novi klijent se stvara ako ne postoji), bilježi se tko je odlučio, kada i napomena
+- Početna upozorava na prijedloge projekata na čekanju
+- Baza: `sql/1.6.0_prijedlozi_projekata.sql` (nova tablica; postojeće se ne mijenjaju)
+
 ## 1.5.0 — 2026-07-14
 - Nova stranica **📝 Novi posao** — cijeli tok posla (upit → ponuda → narudžbenica →
   izvještaj) s brojem, datumom i **linkom na dokument**; klijent postojeći ili novi;
