@@ -30,13 +30,20 @@ def lokalno(dt):
 #    glavna (X.0.0) -> veca promjena strukture baze
 #  0.x.x = razvojna faza; 1.0.0 = sluzbena, javna verzija
 # ---------------------------------------------------------------
-VERZIJA = "0.8.0"
+VERZIJA = "0.8.1"
 DATUM_VERZIJE = "2026-10-07"
+
+
+BETA = VERZIJA.startswith("0.")   # razvojna faza: novi unosi su testni (beta)
 
 
 def prikazi_verziju():
     """Verzija u bocnoj traci — pozvati na svakoj stranici."""
     st.sidebar.caption(f"Laboratorij · v{VERZIJA} · {DATUM_VERZIJE}")
+    if BETA:
+        st.sidebar.warning("**BETA** — prijelazno razdoblje do 1. 1. 2027. "
+                           "Unosi se biljeze kao testni. Slobodno isprobaj i javi "
+                           "sto ne radi.")
 
 
 def get_conn():

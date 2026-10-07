@@ -12,6 +12,15 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.8.1 — 2026-10-07
+- **Oznaka BETA** — stupac `beta` u tablicama s unosima (korištenje opreme, kvarovi,
+  uzorci, ispitivanja, projekti, suradnici, klijenti, oprema, komponente).
+  Postojeći (stvarni) zapisi: `FALSE`; svaki novi zapis: `TRUE` — postavlja baza sama
+- U bočnoj traci upozorenje **BETA — prijelazno razdoblje do 1. 1. 2027.**
+  (prikazuje se dok je verzija 0.x.x)
+- Baza: `sql/0.8.1_beta_oznaka.sql`; za kraj bete pripremljen `sql/1.0.0_kraj_bete.sql`
+  (novi zapisi više nisu beta; beta zapisi se zadržavaju ili brišu — odluka tada)
+
 ## 0.8.0 — 2026-10-07
 - **Uloge u aplikaciji** — novi stupci u `osoblje`: `administrator` (voditelj, laborant)
   i `znanstveno_zvanje` (doc., izv. prof., prof.); postavljaju se kvačicom u Table Editoru

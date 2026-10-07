@@ -65,7 +65,11 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/1.7.0_istrazivacki_projekti.sql` (= 0.7.0) — vrste projekata, `status_odobrenja`,
   `koristenje_opreme.projekt_id`
 - `sql/0.8.0_uloge_i_suradnici.sql` — uloge u `osoblje`, tablica `projekt_suradnici`
+- `sql/0.8.1_beta_oznaka.sql` — stupac `beta` (novi zapisi u prijelaznom razdoblju = testni)
+- `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija
 Postavlja se u `db.py` (`VERZIJA`). Vidi `CHANGELOG.md`.
-**0.x.x = razvojna faza**; 1.0.0 bit će prva službena, javna verzija.
+**0.x.x = razvojna faza (BETA)**; 1.0.0 bit će prva službena, javna verzija.
+Dok traje beta, svaki novi zapis u bazi ima `beta = TRUE`; pri prelasku na 1.0.0
+(`sql/1.0.0_kraj_bete.sql`) odlučuje se hoće li se ti zapisi zadržati ili obrisati.
