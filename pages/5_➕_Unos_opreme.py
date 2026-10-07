@@ -39,11 +39,19 @@ def ucitaj_osoblje():
 
 @st.cache_data(ttl=120)
 def ucitaj_projekte_nabave():
+    """Akronimi vec upisani u opremi + odobreni istrazivacki projekti."""
     rows = fetch(
         "SELECT DISTINCT projekt_nabave FROM oprema "
         "WHERE projekt_nabave IS NOT NULL ORDER BY projekt_nabave;"
     )
-    return [r[0] for r in rows]
+    akronimi = {r[0] for r in rows}
+    try:
+        akronimi |= {r[0] for r in fetch(
+            "SELECT akronim FROM projekti WHERE vrsta = 'istrazivacki' "
+            "AND status_odobrenja = 'odobreno' AND akronim IS NOT NULL;")}
+    except Exception:
+        pass  # baza jos nije nadogradena (1.7.0)
+    return sorted(akronimi)
 
 
 @st.cache_data(ttl=60)
@@ -120,7 +128,8 @@ odg_id = osobe[oi][0]
 pn_opcije = projekti_nabave + ["➕ Novi projekt nabave"]
 pi_ = st.selectbox("Projekt nabave (akronim) *", range(len(pn_opcije)),
                    format_func=lambda i: pn_opcije[i],
-                   help="Iz kojeg je projekta oprema nabavljena (npr. LG 1, GF Ri).")
+                   help="Iz kojeg je projekta oprema nabavljena (npr. LG 1, GF Ri). "
+                        "Istrazivacki projekti se ovdje pojave kad budu odobreni.")
 if pn_opcije[pi_] == "➕ Novi projekt nabave":
     projekt_nabave = st.text_input("Akronim novog projekta", placeholder="npr. LG 6")
 else:

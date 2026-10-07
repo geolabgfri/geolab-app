@@ -1,7 +1,10 @@
-"""Prijedlog projekta — osoba s popisa osoblja predlaze projekt; voditelj/laborant ga odobrava.
+"""Prijedlog istrazivackog projekta — osoba iz 'osoblje' predlaze, voditelj/laborant odobrava.
 
-Upis ide u prijedlozi_projekata (status 'na_cekanju'). Tek nakon odobrenja
-(stranica Odobravanje) projekt se stvarno otvara u tablici projekti.
+Upis ide u 'projekti' (vrsta='istrazivacki', status_odobrenja='na_cekanju').
+Klijent = financijer (HRZZ, NPOO, JICA ...), obicno tipa 'interni'.
+Nakon odobrenja projekt se moze birati u Prijemu uzorka, Zahtjevu za opremu
+i Unosu opreme (projekt nabave = akronim).
+Strucni posao za klijenta otvara se na stranici Novi posao.
 Stranica je otvorena (bez prijave), kao Zahtjev za opremu.
 """
 import os, sys
@@ -9,112 +12,184 @@ import os, sys
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, execute, prikazi_verziju
+from db import fetch, get_conn, prikazi_verziju, sada
 
-st.set_page_config(page_title="Prijedlog projekta", page_icon="🗂️")
+st.set_page_config(page_title="Istrazivacki projekt", page_icon="🗂️")
 prikazi_verziju()
 
 
 @st.cache_data(ttl=300)
-def ucitaj_katedru():
+def ucitaj_osoblje():
     return [r[0] for r in fetch(
         "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;")]
 
 
 @st.cache_data(ttl=120)
 def ucitaj_klijente():
-    return fetch("SELECT id, naziv, tip FROM klijenti ORDER BY tip, naziv;")
+    return fetch("SELECT id, naziv, tip FROM klijenti ORDER BY tip DESC, naziv;")
 
 
-st.title("🗂️ Prijedlog projekta")
-st.caption("Projekt se otvara tek kad ga odobri voditelj ili laborant.")
+@st.cache_data(ttl=120)
+def ucitaj_projekte():
+    return fetch("""SELECT p.oznaka, coalesce(p.akronim, p.naziv), k.naziv,
+                           p.status_odobrenja, p.voditelj
+                    FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+                    WHERE p.vrsta = 'istrazivacki'
+                      AND p.status_odobrenja IN ('na_cekanju','odobreno')
+                    ORDER BY p.id DESC;""")
+
+
+def spremi(d, klijent_id, nk_naziv):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            if klijent_id is None:
+                cur.execute("SELECT id FROM klijenti WHERE lower(naziv) = lower(%s) LIMIT 1;",
+                            (nk_naziv,))
+                r = cur.fetchone()
+                if r:
+                    klijent_id = r[0]
+                else:
+                    cur.execute("INSERT INTO klijenti (naziv, tip) VALUES (%s,'interni') "
+                                "RETURNING id;", (nk_naziv,))
+                    klijent_id = cur.fetchone()[0]
+            cur.execute("""
+                INSERT INTO projekti
+                    (klijent_id, oznaka, naziv, vrsta, akronim, sifra, voditelj,
+                     datum_pocetka, datum_zavrsetka, opis,
+                     status_odobrenja, predlozio, datum_otvaranja)
+                VALUES (%s,%s,%s,'istrazivacki',%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s)
+                RETURNING id;""",
+                (klijent_id, d["oznaka"], d["naziv"], d["akronim"], d["sifra"],
+                 d["voditelj"], d["od"], d["do"], d["opis"], d["predlozio"],
+                 sada().date()))
+            pid = cur.fetchone()[0]
+        conn.commit()
+        return pid
+    finally:
+        conn.close()
+
+
+st.title("🗂️ Prijedlog istrazivackog projekta")
+st.caption("Znanstveni projekt (HRZZ, NPOO, JICA, EU ...). Aktivan je kad ga odobri "
+           "voditelj ili laborant. Strucni posao za klijenta otvara se na stranici Novi posao.")
 
 try:
-    katedra = ucitaj_katedru()
+    osobe = ucitaj_osoblje()
     klijenti = ucitaj_klijente()
+    postojeci = ucitaj_projekte()
 except Exception as e:
-    st.error("Nema veze s bazom ili tablice jos nisu napravljene "
-             "(sql/1.6.0_prijedlozi_projekata.sql).")
+    st.error("Nema veze s bazom ili baza jos nije nadogradena "
+             "(sql/1.7.0_istrazivacki_projekti.sql).")
     st.caption(f"Detalj: {e}")
     st.stop()
 
-if not katedra:
+if not osobe:
     st.warning("Nema aktivnog osoblja u bazi — javi voditelju laboratorija.")
     st.stop()
 
-predlagatelj = st.selectbox("Predlagatelj", katedra)
+if postojeci:
+    with st.expander(f"Postojeci istrazivacki projekti ({len(postojeci)}) — "
+                     f"provjeri da tvoj vec nije upisan"):
+        st.dataframe([{"Oznaka": o, "Akronim": a, "Financijer": k,
+                       "Status": s, "Voditelj": v or "—"}
+                      for (o, a, k, s, v) in postojeci],
+                     use_container_width=True, hide_index=True)
+
+predlozio = st.selectbox("Predlaze", osobe)
 
 st.subheader("Projekt")
-naziv = st.text_input("Naziv projekta *")
-predlozena_oznaka = st.text_input("Predlozena oznaka", placeholder="npr. P-2026-002",
-                                  help="Nije obavezno — konacnu oznaku odredi tko odobrava.")
-gradiliste = st.text_input("Gradiliste / lokacija")
-opis = st.text_area("Opis i svrha (koja ispitivanja, okvirni opseg, rok)")
+c1, c2 = st.columns([1, 2])
+akronim = c1.text_input("Akronim *", placeholder="npr. REMOK")
+naziv = c2.text_input("Puni naziv *")
 
-st.subheader("Klijent")
-opcije = (["Postojeci", "Novi klijent"] if klijenti else ["Novi klijent"])
-kmod = st.radio("Klijent", opcije, horizontal=True, label_visibility="collapsed")
-klijent_id, nk_naziv, nk_tip = None, None, None
-if kmod == "Postojeci":
+st.markdown("**Financijer**")
+opcije = (["Postojeci", "Novi financijer"] if klijenti else ["Novi financijer"])
+fmod = st.radio("Financijer", opcije, horizontal=True, label_visibility="collapsed")
+klijent_id, nk_naziv, fin_txt = None, "", ""
+if fmod == "Postojeci":
     lab = [f"{n}  ·  {t}" for (_i, n, t) in klijenti]
-    ki = st.selectbox("Odaberi klijenta", range(len(lab)), format_func=lambda i: lab[i])
-    klijent_id = klijenti[ki][0]
+    ki = st.selectbox("Odaberi financijera", range(len(lab)), format_func=lambda i: lab[i],
+                      help="Financijeri se vode kao klijenti tipa 'interni'.")
+    klijent_id, fin_txt = klijenti[ki][0], klijenti[ki][1]
 else:
-    nk_naziv = st.text_input("Naziv novog klijenta *")
-    nk_tip = st.selectbox("Tip", ["interni", "komercijalni"])
+    nk_naziv = st.text_input("Naziv financijera *", placeholder="npr. HRZZ")
+    fin_txt = nk_naziv
+
+c1, c2 = st.columns(2)
+sifra = c1.text_input("Sifra / broj ugovora", placeholder="npr. IP-2022-10-1234")
+oznaka = c2.text_input("Predlozena oznaka", placeholder="npr. NPOO-2026-REMOK",
+                       help="Ako ostane prazno, predlaze se FINANCIJER-GODINA-AKRONIM. "
+                            "Konacnu oznaku potvrduje tko odobrava.")
+
+vi = st.selectbox("Voditelj projekta", range(len(osobe)), format_func=lambda i: osobe[i],
+                  index=osobe.index(predlozio))
+voditelj = osobe[vi]
+
+c1, c2 = st.columns(2)
+ima_od = c1.checkbox("Datum pocetka")
+datum_od = c1.date_input("Pocetak", label_visibility="collapsed") if ima_od else None
+ima_do = c2.checkbox("Datum zavrsetka")
+datum_do = c2.date_input("Zavrsetak", label_visibility="collapsed") if ima_do else None
+
+opis = st.text_area("Opis — koja ispitivanja / oprema su predvideni u laboratoriju")
 
 st.divider()
 if st.button("📨 Posalji prijedlog", type="primary"):
     greske = []
+    if not akronim.strip():
+        greske.append("Upisi akronim projekta.")
     if not naziv.strip():
-        greske.append("Upisi naziv projekta.")
-    if kmod != "Postojeci" and not (nk_naziv or "").strip():
-        greske.append("Upisi naziv novog klijenta.")
+        greske.append("Upisi puni naziv projekta.")
+    if fmod != "Postojeci" and not nk_naziv.strip():
+        greske.append("Upisi naziv financijera.")
+    if datum_od and datum_do and datum_do < datum_od:
+        greske.append("Zavrsetak mora biti nakon pocetka.")
     if greske:
         for g in greske:
             st.error(g)
     else:
+        konacna = oznaka.strip() or (
+            f"{fin_txt.strip().split()[0].upper()}-{(datum_od or sada()).year}-"
+            f"{akronim.strip().upper()}")
+        d = {"oznaka": konacna, "naziv": naziv.strip(), "akronim": akronim.strip(),
+             "sifra": sifra.strip() or None, "voditelj": voditelj,
+             "od": datum_od, "do": datum_do, "opis": opis.strip() or None,
+             "predlozio": predlozio}
         try:
-            pid = execute("""
-                INSERT INTO prijedlozi_projekata
-                    (predlagatelj, predlozena_oznaka, naziv, gradiliste, opis,
-                     klijent_id, novi_klijent_naziv, novi_klijent_tip)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;""",
-                (predlagatelj, predlozena_oznaka.strip() or None, naziv.strip(),
-                 gradiliste.strip() or None, opis.strip() or None,
-                 klijent_id, (nk_naziv or "").strip() or None, nk_tip),
-                returning=True)
-            klijent_txt = (next(n for (i, n, _t) in klijenti if i == klijent_id)
-                           if klijent_id else f"{nk_naziv.strip()} (novi, {nk_tip})")
-            st.session_state["prijedlog"] = {
-                "id": pid, "predlagatelj": predlagatelj, "naziv": naziv.strip(),
-                "oznaka": predlozena_oznaka.strip() or "—", "klijent": klijent_txt,
-                "gradiliste": gradiliste.strip() or "—", "opis": opis.strip() or "—"}
-            st.success(f"✅ Prijedlog #{pid} je poslan i ceka odobrenje.")
+            pid = spremi(d, klijent_id, nk_naziv.strip())
+            st.session_state["prijedlog_ip"] = {
+                **d, "id": pid, "financijer": fin_txt.strip(),
+                "trajanje": f"{datum_od or '?'} – {datum_do or '?'}"}
+            st.cache_data.clear()
+            st.success(f"✅ Prijedlog {konacna} je poslan i ceka odobrenje.")
         except Exception as e:
-            st.error(f"Greska: {e}")
+            poruka = str(e).lower()
+            if "duplicate" in poruka or "unique" in poruka:
+                st.error(f"Oznaka '{konacna}' vec postoji. Upisi drugu predlozenu oznaku.")
+            else:
+                st.error(f"Greska: {e}")
 
 st.divider()
 st.subheader("📧 Obavijest e-mailom")
 if "email" not in st.secrets:
     st.info("E-mail nije konfiguriran.")
-elif "prijedlog" not in st.session_state:
+elif "prijedlog_ip" not in st.session_state:
     st.caption("Prvo posalji prijedlog.")
 elif st.button("📧 Posalji e-mail voditelju i laborantu"):
     try:
         import yagmail
-        p = st.session_state["prijedlog"]
+        p = st.session_state["prijedlog_ip"]
         rec = list(st.secrets["email"]["recipients"])
         yag = yagmail.SMTP(st.secrets["email"]["sender"],
                            st.secrets["email"]["app_password"])
-        yag.send(to=rec, subject=f"Novi prijedlog projekta (na cekanju): {p['naziv']}",
-                 contents=(f"Novi prijedlog projekta #{p['id']}.\n\n"
-                           f"Predlagatelj: {p['predlagatelj']}\n"
-                           f"Naziv: {p['naziv']}\n"
-                           f"Predlozena oznaka: {p['oznaka']}\n"
-                           f"Klijent: {p['klijent']}\n"
-                           f"Gradiliste: {p['gradiliste']}\n"
-                           f"Opis: {p['opis']}\n\n"
+        yag.send(to=rec,
+                 subject=f"Novi istrazivacki projekt (na cekanju): {p['akronim']}",
+                 contents=(f"Prijedlog istrazivackog projekta {p['oznaka']}.\n\n"
+                           f"Akronim: {p['akronim']}\nNaziv: {p['naziv']}\n"
+                           f"Financijer: {p['financijer']}  ·  sifra: {p['sifra'] or '—'}\n"
+                           f"Voditelj: {p['voditelj']}\nTrajanje: {p['trajanje']}\n"
+                           f"Predlozio: {p['predlozio']}\nOpis: {p['opis'] or '—'}\n\n"
                            f"Odobrite na stranici Odobravanje."))
         st.success(f"📤 Poslano na: {', '.join(rec)}")
     except Exception as e:

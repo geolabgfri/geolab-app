@@ -10,7 +10,25 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
-## 1.6.0 — 2026-10-07
+## 1.7.0 — 2026-10-07
+- **Istraživački projekti u postojećoj tablici `projekti`** — nova vrsta projekta
+  (`strucni` / `istrazivacki`); klijent tipa `interni` je financijer (npr. NPOO za REMOK).
+  REMOK (`NPOO-2026-REMOK`) označen kao istraživački
+- **🗂️ Prijedlog projekta** — prijedlog istraživačkog projekta: akronim, naziv, financijer,
+  šifra, voditelj, trajanje, opis; čeka odobrenje (`status_odobrenja = na_cekanju`)
+- **✅ Odobravanje** — kartica *Istraživački projekti*: potvrda oznake i akronima, odobri /
+  odbij; aktivni se mogu označiti završenima (faza `zavrseno`)
+- **📨 Zahtjev za opremu** — po želji se bira projekt za koji se ispitivanje radi
+  (`koristenje_opreme.projekt_id`); oprema može biti nabavljena na drugom projektu
+- **➕ Unos opreme** — projekt nabave nudi i akronime odobrenih istraživačkih projekata
+- **📥 Prijem uzorka** — nudi samo odobrene, nezavršene projekte (stručne i istraživačke)
+- **📝 Novi posao** i **📊 Pregledi → Poslovi** — samo stručni poslovi
+- **📊 Pregledi** — kartica *Istraživački projekti*: nabavljena oprema, korištenja, sati,
+  uzorci po projektu + detalji i CSV
+- Baza: `sql/1.7.0_istrazivacki_projekti.sql`; tablica `prijedlozi_projekata` iz 1.6.0
+  se briše
+
+## 1.6.0 — 2026-10-07  *(zamijenjeno u 1.7.0)*
 - Nova stranica **🗂️ Prijedlog projekta** (bez prijave) — osoba s popisa
   `osoblje` predlaže projekt: naziv, predložena oznaka, gradilište, opis,
   klijent postojeći ili novi; prijedlog ide u `prijedlozi_projekata` sa statusom `na_cekanju`

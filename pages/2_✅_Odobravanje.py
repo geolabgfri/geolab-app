@@ -1,16 +1,17 @@
 """Odobravanje — voditelj/laborant odobrava ili odbija (biljezi tko i kada).
 
 Dvije kartice:
-  * Zahtjevi za opremu   (koristenje_opreme)
-  * Prijedlozi projekata (prijedlozi_projekata -> po odobrenju upis u projekti)
+  * Zahtjevi za opremu        (koristenje_opreme)
+  * Istrazivacki projekti     (projekti.vrsta='istrazivacki':
+                               status_odobrenja na_cekanju -> odobreno / odbijeno;
+                               zavrsen = faza 'zavrseno')
 """
 import os, sys
-from datetime import datetime
 
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, execute, get_conn, prikazi_verziju, sada, lokalno
+from db import fetch, execute, prikazi_verziju, sada, lokalno
 from auth import trazi_prijavu
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
@@ -25,9 +26,11 @@ def zahtjevi(status):
     return fetch("""
         SELECT k.id, o.naziv, o.interna_oznaka, k.podnositelj,
                k.vrijeme_od, k.vrijeme_do, k.sati_koristenja,
-               k.materijal, k.potrebe_ispitivanja, k.opis
+               k.materijal, k.potrebe_ispitivanja, k.opis,
+               coalesce(pr.akronim, pr.oznaka)
         FROM koristenje_opreme k
         JOIN oprema o ON o.id = k.oprema_id
+        LEFT JOIN projekti pr ON pr.id = k.projekt_id
         WHERE k.status = %s
         ORDER BY k.vrijeme_od;""", (status,))
 
@@ -38,60 +41,41 @@ def odluci(zid, novi_status, tko):
                WHERE id = %s;""", (novi_status, tko, sada(), zid))
 
 
-# =================== PRIJEDLOZI PROJEKATA ===================
-def prijedlozi():
+# =================== ISTRAZIVACKI PROJEKTI ===================
+def projekti_na_cekanju():
     return fetch("""
-        SELECT p.id, p.predlagatelj, p.predlozena_oznaka, p.naziv, p.gradiliste,
-               p.opis, p.klijent_id, k.naziv, k.tip,
-               p.novi_klijent_naziv, p.novi_klijent_tip, p.vrijeme_prijave
-        FROM prijedlozi_projekata p
-        LEFT JOIN klijenti k ON k.id = p.klijent_id
-        WHERE p.status = 'na_cekanju'
-        ORDER BY p.vrijeme_prijave;""")
+        SELECT p.id, p.oznaka, p.akronim, p.naziv, p.sifra, k.naziv, p.voditelj,
+               p.datum_pocetka, p.datum_zavrsetka, p.opis, p.predlozio
+        FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+        WHERE p.vrsta = 'istrazivacki' AND p.status_odobrenja = 'na_cekanju'
+        ORDER BY p.id;""")
 
 
-def predlozi_oznaku_projekta():
-    god = sada().year
-    n = fetch("SELECT count(*) FROM projekti WHERE oznaka LIKE %s;",
-              (f"P-{god}-%",))[0][0] or 0
-    return f"P-{god}-{n + 1:03d}"
+def projekti_aktivni():
+    return fetch("""
+        SELECT p.id, p.oznaka, coalesce(p.akronim, p.naziv), k.naziv, p.voditelj,
+               p.datum_zavrsetka
+        FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+        WHERE p.vrsta = 'istrazivacki' AND p.status_odobrenja = 'odobreno'
+          AND coalesce(p.faza, '') <> 'zavrseno'
+        ORDER BY p.oznaka;""")
 
 
-def odobri_projekt(pr_id, oznaka, klijent_id, nk_naziv, nk_tip,
-                   naziv, gradiliste, tko, napomena):
-    """Jedna transakcija: (novi klijent) -> projekt -> prijedlog 'odobreno'."""
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            if klijent_id is None:
-                cur.execute("SELECT id FROM klijenti WHERE lower(naziv) = lower(%s) LIMIT 1;",
-                            (nk_naziv,))
-                r = cur.fetchone()
-                if r:
-                    klijent_id = r[0]
-                else:
-                    cur.execute("INSERT INTO klijenti (naziv, tip) VALUES (%s,%s) RETURNING id;",
-                                (nk_naziv, nk_tip or "interni"))
-                    klijent_id = cur.fetchone()[0]
-            cur.execute("""INSERT INTO projekti (klijent_id, oznaka, naziv, gradiliste)
-                           VALUES (%s,%s,%s,%s) RETURNING id;""",
-                        (klijent_id, oznaka, naziv, gradiliste))
-            projekt_id = cur.fetchone()[0]
-            cur.execute("""UPDATE prijedlozi_projekata
-                           SET status='odobreno', odobrio=%s, datum_odobrenja=%s,
-                               napomena_odluke=%s, projekt_id=%s, klijent_id=%s
-                           WHERE id=%s;""",
-                        (tko, sada(), napomena, projekt_id, klijent_id, pr_id))
-        conn.commit()
-        return projekt_id
-    finally:
-        conn.close()
+def odluci_projekt(pid, novi_status, tko, napomena, oznaka=None, akronim=None):
+    if novi_status == "odobreno":
+        execute("""UPDATE projekti
+                   SET status_odobrenja='odobreno', odobrio=%s, datum_odobrenja=%s,
+                       napomena_odluke=%s, oznaka=%s, akronim=%s
+                   WHERE id=%s;""", (tko, sada(), napomena, oznaka, akronim, pid))
+    else:
+        execute("""UPDATE projekti
+                   SET status_odobrenja='odbijeno', odobrio=%s, datum_odobrenja=%s,
+                       napomena_odluke=%s
+                   WHERE id=%s;""", (tko, sada(), napomena, pid))
 
 
-def odbij_projekt(pr_id, tko, napomena):
-    execute("""UPDATE prijedlozi_projekata
-               SET status='odbijeno', odobrio=%s, datum_odobrenja=%s, napomena_odluke=%s
-               WHERE id=%s;""", (tko, sada(), napomena, pr_id))
+def zatvori_projekt(pid):
+    execute("UPDATE projekti SET faza='zavrseno' WHERE id=%s;", (pid,))
 
 
 # ---------------------------- SUCELJE ----------------------------
@@ -100,13 +84,13 @@ st.caption(f"Odluke se biljeze na ime: **{tko}**")
 
 lista = zahtjevi("na_cekanju")
 try:
-    lista_pr = prijedlozi()
-    pr_greska = None
+    lista_ip = projekti_na_cekanju()
+    ip_greska = None
 except Exception as e:
-    lista_pr, pr_greska = [], str(e)
+    lista_ip, ip_greska = [], str(e)
 
-tab_op, tab_pr = st.tabs([f"📨 Zahtjevi za opremu ({len(lista)})",
-                          f"🗂️ Prijedlozi projekata ({len(lista_pr)})"])
+tab_op, tab_ip = st.tabs([f"📨 Zahtjevi za opremu ({len(lista)})",
+                          f"🗂️ Istrazivacki projekti ({len(lista_ip)})"])
 
 # ---------- kartica: oprema ----------
 with tab_op:
@@ -115,13 +99,15 @@ with tab_op:
     else:
         st.caption(f"Na cekanju: **{len(lista)}**")
 
-    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis) in lista:
+    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis, ip_akr) in lista:
         with st.container(border=True):
             st.markdown(f"**{naziv}**  ·  inv. {inv or '—'}")
             c1, c2 = st.columns(2)
             c1.write(f"👤 Podnositelj: **{podn or '—'}**")
             c1.write(f"🧱 Materijal: {mat or '—'}")
             c1.write(f"🎯 Potreba: {potr or '—'}")
+            if ip_akr:
+                c1.write(f"🗂️ Projekt: **{ip_akr}**")
             c2.write(f"🕒 Od: {lokalno(v_od):%Y-%m-%d %H:%M}" if v_od else "🕒 Od: —")
             c2.write(f"🕒 Do: {lokalno(v_do):%Y-%m-%d %H:%M}" if v_do else "🕒 Do: —")
             c2.write(f"⏳ Trajanje: {sati or 0} h")
@@ -141,92 +127,104 @@ with tab_op:
     st.divider()
     with st.expander("📜 Nedavno odluceno"):
         povijest = fetch("""
-            SELECT k.id, o.naziv, k.podnositelj, k.status, k.odobrio, k.datum_odobrenja
+            SELECT k.id, o.naziv, k.podnositelj, coalesce(pr.akronim, pr.oznaka), k.status,
+                   k.odobrio, k.datum_odobrenja
             FROM koristenje_opreme k
             JOIN oprema o ON o.id = k.oprema_id
+            LEFT JOIN projekti pr ON pr.id = k.projekt_id
             WHERE k.status IN ('odobreno','odbijeno')
             ORDER BY k.datum_odobrenja DESC NULLS LAST
             LIMIT 20;""")
         if povijest:
             st.dataframe(
-                [{"#": r[0], "Oprema": r[1], "Podnositelj": r[2], "Status": r[3],
-                  "Odlucio": r[4], "Kada": (lokalno(r[5]).strftime("%Y-%m-%d %H:%M") if r[5] else "—")}
+                [{"#": r[0], "Oprema": r[1], "Podnositelj": r[2], "Projekt": r[3] or "—",
+                  "Status": r[4], "Odlucio": r[5],
+                  "Kada": (lokalno(r[6]).strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
                  for r in povijest],
                 use_container_width=True, hide_index=True)
         else:
             st.caption("Jos nema odluka.")
 
-# ---------- kartica: projekti ----------
-with tab_pr:
-    if pr_greska:
-        st.error("Tablica prijedloga nije dostupna — pokreni sql/1.6.0_prijedlozi_projekata.sql.")
-        st.caption(f"Detalj: {pr_greska}")
-    elif not lista_pr:
+# ---------- kartica: istrazivacki projekti ----------
+with tab_ip:
+    if ip_greska:
+        st.error("Baza nije nadogradena — pokreni sql/1.7.0_istrazivacki_projekti.sql.")
+        st.caption(f"Detalj: {ip_greska}")
+        st.stop()
+
+    if not lista_ip:
         st.success("🎉 Nema prijedloga projekata na cekanju.")
     else:
-        st.caption(f"Na cekanju: **{len(lista_pr)}**")
-        prijedlog_oznake = predlozi_oznaku_projekta()
+        st.caption(f"Na cekanju: **{len(lista_ip)}**")
 
-    for (pid, predl, p_ozn, p_naziv, grad, p_opis, kid, k_naziv, k_tip,
-         nk_naziv, nk_tip, v_prij) in lista_pr:
+    for (pid, ozn, akr, naziv, sifra, fin, vod, d_od, d_do, opis, predl) in lista_ip:
         with st.container(border=True):
-            st.markdown(f"**{p_naziv}**  ·  prijedlog #{pid}")
+            st.markdown(f"**{akr or ozn}** — {naziv}")
             c1, c2 = st.columns(2)
-            c1.write(f"👤 Predlagatelj: **{predl}**")
-            c1.write(f"📍 Gradiliste: {grad or '—'}")
-            if kid:
-                c2.write(f"🏢 Klijent: {k_naziv} · {k_tip}")
-            else:
-                c2.write(f"🏢 Klijent: **{nk_naziv}** · {nk_tip}  (novi)")
-            c2.write(f"🕒 Prijavljeno: {lokalno(v_prij):%Y-%m-%d %H:%M}" if v_prij else "🕒 —")
-            if p_opis:
-                st.caption(f"📝 {p_opis}")
+            c1.write(f"💶 Financijer: {fin}  ·  sifra: {sifra or '—'}")
+            c1.write(f"👤 Voditelj: **{vod or '—'}**")
+            c1.write(f"✍️ Predlozio: {predl or '—'}")
+            c2.write(f"📅 Trajanje: {d_od or '?'} – {d_do or '?'}")
+            if opis:
+                st.caption(f"📝 {opis}")
 
-            oznaka = st.text_input("Oznaka projekta *", key=f"pozn{pid}",
-                                   value=p_ozn or prijedlog_oznake,
-                                   help="Mora biti jedinstvena. Prijedlog mozes promijeniti.")
-            napomena = st.text_input("Napomena uz odluku", key=f"pnap{pid}")
+            c1, c2 = st.columns([2, 1])
+            oznaka = c1.text_input("Oznaka (konacna) *", value=ozn, key=f"iozn{pid}",
+                                   help="Pod ovom oznakom projekt se vidi u Prijemu uzorka.")
+            akronim = c2.text_input("Akronim *", value=akr or "", key=f"iakr{pid}",
+                                    help="Upisuje se kao projekt nabave opreme.")
+            napomena = st.text_input("Napomena uz odluku", key=f"inap{pid}")
 
             b1, b2, _ = st.columns([1, 1, 3])
-            if b1.button("✅ Odobri", key=f"pok{pid}", type="primary"):
-                if not oznaka.strip():
-                    st.error("Upisi oznaku projekta.")
+            if b1.button("✅ Odobri", key=f"iok{pid}", type="primary"):
+                if not oznaka.strip() or not akronim.strip():
+                    st.error("Upisi oznaku i akronim.")
                 else:
                     try:
-                        novi_id = odobri_projekt(pid, oznaka.strip(), kid, nk_naziv, nk_tip,
-                                                 p_naziv, grad, tko, napomena.strip() or None)
+                        odluci_projekt(pid, "odobreno", tko, napomena.strip() or None,
+                                       oznaka.strip(), akronim.strip())
                         st.cache_data.clear()
-                        st.success(f"Projekt {oznaka.strip()} otvoren (id {novi_id}).")
+                        st.success(f"Projekt {oznaka.strip()} je odobren.")
                         st.rerun()
                     except Exception as e:
                         poruka = str(e).lower()
                         if "duplicate" in poruka or "unique" in poruka:
-                            st.error("Projekt s tom oznakom vec postoji. Promijeni oznaku.")
+                            st.error("Projekt s tom oznakom vec postoji.")
                         else:
                             st.error(f"Greska: {e}")
-            if b2.button("❌ Odbij", key=f"pno{pid}"):
-                odbij_projekt(pid, tko, napomena.strip() or None)
-                st.warning(f"Prijedlog #{pid} odbijen ({tko}).")
+            if b2.button("❌ Odbij", key=f"ino{pid}"):
+                odluci_projekt(pid, "odbijeno", tko, napomena.strip() or None)
+                st.warning(f"Prijedlog {akr or ozn} odbijen ({tko}).")
                 st.rerun()
 
-    if not pr_greska:
-        st.divider()
-        with st.expander("📜 Nedavno odluceno"):
-            pov = fetch("""
-                SELECT p.id, p.naziv, p.predlagatelj, p.status, pr.oznaka,
-                       p.odobrio, p.datum_odobrenja, p.napomena_odluke
-                FROM prijedlozi_projekata p
-                LEFT JOIN projekti pr ON pr.id = p.projekt_id
-                WHERE p.status IN ('odobreno','odbijeno')
-                ORDER BY p.datum_odobrenja DESC NULLS LAST
-                LIMIT 20;""")
-            if pov:
-                st.dataframe(
-                    [{"#": r[0], "Naziv": r[1], "Predlagatelj": r[2], "Status": r[3],
-                      "Oznaka": r[4] or "—", "Odlucio": r[5],
-                      "Kada": (lokalno(r[6]).strftime("%Y-%m-%d %H:%M") if r[6] else "—"),
-                      "Napomena": r[7] or ""}
-                     for r in pov],
-                    use_container_width=True, hide_index=True)
-            else:
-                st.caption("Jos nema odluka.")
+    st.divider()
+    with st.expander("🟢 Aktivni istrazivacki projekti — oznaci zavrsenim"):
+        aktivni = projekti_aktivni()
+        if not aktivni:
+            st.caption("Nema aktivnih projekata.")
+        for (pid, ozn, akr, fin, vod, d_do) in aktivni:
+            c1, c2 = st.columns([4, 1])
+            c1.write(f"**{akr}** ({ozn})  ·  {fin}  ·  {vod or '—'}  ·  do {d_do or '?'}")
+            if c2.button("Zavrsen", key=f"izav{pid}"):
+                zatvori_projekt(pid)
+                st.cache_data.clear()
+                st.rerun()
+
+    with st.expander("📜 Nedavno odluceno"):
+        pov = fetch("""
+            SELECT oznaka, coalesce(akronim, naziv), predlozio, status_odobrenja,
+                   odobrio, datum_odobrenja, napomena_odluke
+            FROM projekti
+            WHERE vrsta = 'istrazivacki' AND datum_odobrenja IS NOT NULL
+            ORDER BY datum_odobrenja DESC
+            LIMIT 20;""")
+        if pov:
+            st.dataframe(
+                [{"Oznaka": r[0], "Akronim": r[1], "Predlozio": r[2] or "—", "Status": r[3],
+                  "Odlucio": r[4] or "—",
+                  "Kada": (lokalno(r[5]).strftime("%Y-%m-%d %H:%M") if r[5] else "—"),
+                  "Napomena": r[6] or ""}
+                 for r in pov],
+                use_container_width=True, hide_index=True)
+        else:
+            st.caption("Jos nema odluka.")

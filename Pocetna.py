@@ -56,13 +56,14 @@ except Exception as e:
 
 try:
     prijedlozi = fetch(
-        "SELECT count(*) FROM prijedlozi_projekata WHERE status = 'na_cekanju';"
+        "SELECT count(*) FROM projekti "
+        "WHERE vrsta = 'istrazivacki' AND status_odobrenja = 'na_cekanju';"
     )[0][0]
     if prijedlozi:
-        st.warning(f"🗂️ {prijedlozi} prijedlog(a) projekta ceka odobrenje "
+        st.warning(f"🗂️ {prijedlozi} istrazivacki projekt(a) ceka odobrenje "
                    f"— vidi stranicu **Odobravanje**.")
 except Exception:
-    pass  # tablica jos nije napravljena (sql/1.6.0_prijedlozi_projekata.sql)
+    pass  # tablica jos nije napravljena (sql/1.7.0_istrazivacki_projekti.sql)
 
 st.divider()
 st.markdown(
@@ -73,13 +74,13 @@ st.markdown(
 |---|---|---|
 | 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja | 🌐 svi |
 | 🛠️ Prijava kvara | prijava kvara uredaja ili komponente | 🌐 svi |
-| 🗂️ Prijedlog projekta | osoblje predlaze projekt (ceka odobrenje) | 🌐 svi |
-| ✅ Odobravanje | odobravanje / odbijanje zahtjeva i prijedloga projekata | 🔒 prijava |
+| 🗂️ Prijedlog projekta | prijedlog istrazivackog projekta (HRZZ, JICA ...), ceka odobrenje | 🌐 svi |
+| ✅ Odobravanje | odobravanje zahtjeva za opremu i istrazivackih projekata | 🔒 prijava |
 | 📥 Prijem uzorka | zaprimanje uzorka | 🔒 prijava |
 | ➕ Unos opreme | dodavanje uredaja u inventar | 🔒 prijava |
 | 🔧 Rjesavanje kvarova | zatvaranje kvara, povratak u upotrebu | 🔒 prijava |
-| 📝 Novi posao | otvaranje posla: upit → ponuda → narudzbenica → izvjestaj | 🔒 prijava |
-| 📊 Pregledi | iskoristenost opreme, poslovi, uzorci, kvarovi (+CSV) | 🔒 prijava |
+| 📝 Novi posao | strucni posao za klijenta: upit → ponuda → narudzbenica → izvjestaj | 🔒 prijava |
+| 📊 Pregledi | oprema, poslovi, uzorci, kvarovi, istrazivacki projekti (+CSV) | 🔒 prijava |
 """
 )
 

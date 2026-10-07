@@ -26,7 +26,14 @@ tko = trazi_prijavu("Prijem uzorka")
 
 @st.cache_data(ttl=120)
 def ucitaj_projekte():
-    return fetch("SELECT id, oznaka, naziv FROM projekti ORDER BY id DESC;")
+    """Samo odobreni, nezavrseni projekti (strucni i istrazivacki)."""
+    try:
+        return fetch("""SELECT id, oznaka, naziv FROM projekti
+                        WHERE status_odobrenja = 'odobreno'
+                          AND coalesce(faza, '') <> 'zavrseno'
+                        ORDER BY id DESC;""")
+    except Exception:  # baza jos nije nadogradena (1.7.0)
+        return fetch("SELECT id, oznaka, naziv FROM projekti ORDER BY id DESC;")
 
 
 @st.cache_data(ttl=120)

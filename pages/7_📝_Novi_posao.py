@@ -28,9 +28,16 @@ def ucitaj_klijente():
 
 @st.cache_data(ttl=60)
 def ucitaj_projekte():
-    return fetch("""SELECT p.id, p.oznaka, p.naziv, k.naziv, p.faza
-                    FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
-                    ORDER BY p.id DESC;""")
+    """Strucni poslovi za dopunu (istrazivacki projekti idu kroz Prijedlog projekta)."""
+    try:
+        return fetch("""SELECT p.id, p.oznaka, p.naziv, k.naziv, p.faza
+                        FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+                        WHERE p.vrsta = 'strucni'
+                        ORDER BY p.id DESC;""")
+    except Exception:  # baza jos nije nadogradena (1.7.0)
+        return fetch("""SELECT p.id, p.oznaka, p.naziv, k.naziv, p.faza
+                        FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+                        ORDER BY p.id DESC;""")
 
 
 def spremi_projekt(novi, d, klijent_mode, klijent_id, nk_naziv, nk_tip, projekt_id=None):
@@ -100,7 +107,8 @@ def blok_dokumenta(naslov, kljuc, postojeci=None):
 
 # ---------------------------- SUCELJE ----------------------------
 st.title("📝 Novi posao / projekt")
-st.caption("Tok: upit → ponuda → narudžbenica → izvještaj")
+st.caption("Strucni posao za klijenta. Tok: upit → ponuda → narudžbenica → izvještaj.  "
+           "Istrazivacki projekt (HRZZ, NPOO, JICA ...) predlaze se na stranici Prijedlog projekta.")
 
 try:
     klijenti = ucitaj_klijente()

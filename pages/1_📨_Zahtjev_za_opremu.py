@@ -28,16 +28,42 @@ def ucitaj_osoblje():
         "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;")]
 
 
-def spremi_zahtjev(oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati):
+@st.cache_data(ttl=300)
+def ucitaj_ist_projekte():
+    """Odobreni, nezavrseni projekti (istrazivacki prvi); prazno ako baza nije nadogradena."""
+    try:
+        return fetch("""SELECT id, coalesce(akronim, oznaka),
+                               CASE WHEN vrsta = 'istrazivacki' THEN 'istrazivacki'
+                                    ELSE 'strucni: ' || coalesce(naziv, '') END
+                        FROM projekti
+                        WHERE status_odobrenja = 'odobreno'
+                          AND coalesce(faza, '') <> 'zavrseno'
+                        ORDER BY (vrsta = 'istrazivacki') DESC, id DESC;""")
+    except Exception:
+        return []
+
+
+def spremi_zahtjev(oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
+                   ip_id=None):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO koristenje_opreme
-                    (oprema_id, vrijeme_od, vrijeme_do, materijal,
-                     potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju');""",
-                (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati))
+            if ip_id:
+                cur.execute("""
+                    INSERT INTO koristenje_opreme
+                        (oprema_id, vrijeme_od, vrijeme_do, materijal,
+                         potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status,
+                         projekt_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s);""",
+                    (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
+                     ip_id))
+            else:
+                cur.execute("""
+                    INSERT INTO koristenje_opreme
+                        (oprema_id, vrijeme_od, vrijeme_do, materijal,
+                         potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju');""",
+                    (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati))
         conn.commit()
     finally:
         conn.close()
@@ -88,6 +114,18 @@ potreba = st.selectbox("Za koje potrebe",
                        ["Nastava", "Zavrsni rad", "Diplomski rad", "Doktorski rad",
                         "Znanstveni rad", "Struka", "Ostalo"])
 
+ist_projekti = ucitaj_ist_projekte()
+ip_id, ip_akr = None, ""
+if ist_projekti:
+    ip_opcije = ["— nije vezano uz projekt —"] + [f"{a}  ·  {n}" for (_i, a, n) in ist_projekti]
+    ipi = st.selectbox("Projekt", range(len(ip_opcije)),
+                       format_func=lambda i: ip_opcije[i],
+                       help="Za koji se projekt ispitivanje radi (istrazivacki: HRZZ, NPOO, "
+                            "JICA ... ili strucni posao). Oprema moze biti nabavljena "
+                            "na drugom projektu.")
+    if ipi > 0:
+        ip_id, ip_akr = ist_projekti[ipi - 1][0], ist_projekti[ipi - 1][1]
+
 st.subheader("⏱️ Vrijeme")
 c1, c2 = st.columns(2)
 with c1:
@@ -112,11 +150,11 @@ if st.button("📨 Posalji zahtjev", type="primary"):
         st.error("Upisi podnositelja.")
     else:
         try:
-            spremi_zahtjev(oid, v_od, v_do, materijal, potreba, opis, podnositelj, sati)
+            spremi_zahtjev(oid, v_od, v_do, materijal, potreba, opis, podnositelj, sati, ip_id)
             st.session_state["zapis"] = {
                 "Inv. br.": inv_br or "", "Oprema": naziv_opreme,
                 "Odgovorna osoba": odg or "", "Materijal": materijal,
-                "Potreba": potreba, "Datum od": v_od.strftime("%Y-%m-%d %H:%M"),
+                "Potreba": potreba, "Projekt": ip_akr, "Datum od": v_od.strftime("%Y-%m-%d %H:%M"),
                 "Datum do": v_do.strftime("%Y-%m-%d %H:%M"), "Sati": sati,
                 "Opis": opis, "Podnositelj": podnositelj, "Status": "na_cekanju"}
             st.session_state["v_od"] = v_od; st.session_state["v_do"] = v_do
@@ -145,6 +183,7 @@ else:
                      contents=(f"Novi zahtjev za koristenje opreme.\n\n"
                                f"Podnositelj: {z['Podnositelj']}\n"
                                f"Oprema: {z['Oprema']} (inv. {z['Inv. br.']})\n"
+                               f"Projekt: {z.get('Projekt') or '—'}\n"
                                f"Vrijeme: {z['Datum od']} - {z['Datum do']} ({z['Sati']} h)\n"
                                f"Opis: {z['Opis']}\n\nOdobrite na stranici Odobravanje."),
                      attachments=[xlsx, ics])

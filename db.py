@@ -29,7 +29,7 @@ def lokalno(dt):
 #    manja  (1.X.0) -> nova funkcija / stranica
 #    glavna (X.0.0) -> veca promjena strukture baze
 # ---------------------------------------------------------------
-VERZIJA = "1.6.0"
+VERZIJA = "1.7.0"
 DATUM_VERZIJE = "2026-10-07"
 
 

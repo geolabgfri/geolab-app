@@ -71,7 +71,8 @@ if od > do:
     st.error("Datum 'Od' mora biti prije datuma 'Do'.")
     st.stop()
 
-tabs = st.tabs(["🔧 Oprema", "📋 Poslovi", "🧪 Uzorci", "🛠️ Kvarovi"])
+tabs = st.tabs(["🔧 Oprema", "📋 Poslovi", "🧪 Uzorci", "🛠️ Kvarovi",
+                "🗂️ Istrazivacki projekti"])
 
 # ============================ OPREMA ============================
 with tabs[0]:
@@ -124,9 +125,10 @@ with tabs[0]:
 
 # ============================ POSLOVI ============================
 with tabs[1]:
-    st.subheader("Poslovi po fazi")
+    st.subheader("Strucni poslovi po fazi")
     rows = fetch("""SELECT coalesce(faza,'—'), count(*) FROM projekti
-                    WHERE datum_otvaranja BETWEEN %s AND %s
+                    WHERE vrsta = 'strucni'
+                      AND datum_otvaranja BETWEEN %s AND %s
                     GROUP BY faza ORDER BY 1;""", (od, do))
     d = df(rows, ["Faza", "Broj"])
     c1, c2 = st.columns([1, 2])
@@ -141,7 +143,8 @@ with tabs[1]:
                p.broj_ponude, p.broj_izvjestaja,
                (SELECT count(*) FROM uzorci u WHERE u.projekt_id = p.id) AS uzoraka
         FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
-        WHERE p.datum_otvaranja BETWEEN %s AND %s
+        WHERE p.vrsta = 'strucni'
+          AND p.datum_otvaranja BETWEEN %s AND %s
         ORDER BY p.id DESC;""", (od, do))
     d = df(rows, ["Oznaka", "Naziv", "Klijent", "Tip", "Faza", "Otvoren",
                   "Br. ponude", "Br. izvjestaja", "Uzoraka"])
@@ -153,7 +156,8 @@ with tabs[1]:
     rows = fetch("""
         SELECT k.tip, count(*) FROM projekti p
         JOIN klijenti k ON k.id = p.klijent_id
-        WHERE p.datum_otvaranja BETWEEN %s AND %s
+        WHERE p.vrsta = 'strucni'
+          AND p.datum_otvaranja BETWEEN %s AND %s
         GROUP BY k.tip;""", (od, do))
     d = df(rows, ["Tip", "Broj poslova"])
     if not d.empty:
@@ -229,3 +233,67 @@ with tabs[3]:
         d["Sustav radi"] = d["Sustav radi"].map({True: "DA", False: "NE"}).fillna("—")
     st.dataframe(d, use_container_width=True, hide_index=True)
     preuzmi(d, "kvarovi.csv")
+
+# ======================= ISTRAZIVACKI PROJEKTI =======================
+with tabs[4]:
+    st.subheader("Istrazivacki projekti — oprema, koristenje (u razdoblju) i uzorci")
+    ip = fetch("""
+        SELECT p.id, p.oznaka, p.akronim, p.naziv, k.naziv, p.voditelj,
+               CASE WHEN p.faza = 'zavrseno' THEN 'zavrsen' ELSE 'aktivan' END,
+               p.datum_pocetka, p.datum_zavrsetka,
+               (SELECT count(*) FROM oprema o
+                 WHERE p.akronim IS NOT NULL AND o.projekt_nabave = p.akronim),
+               (SELECT count(*) FROM koristenje_opreme kk
+                 WHERE kk.projekt_id = p.id AND kk.status = 'odobreno'
+                   AND kk.vrijeme_od::date BETWEEN %s AND %s),
+               (SELECT round(sum(coalesce(kk.sati_koristenja,0))::numeric, 1)
+                  FROM koristenje_opreme kk
+                 WHERE kk.projekt_id = p.id AND kk.status = 'odobreno'
+                   AND kk.vrijeme_od::date BETWEEN %s AND %s),
+               (SELECT count(*) FROM uzorci u WHERE u.projekt_id = p.id)
+        FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
+        WHERE p.vrsta = 'istrazivacki' AND p.status_odobrenja = 'odobreno'
+        ORDER BY p.oznaka;""", (od, do, od, do))
+    d = df(ip, ["id", "Oznaka", "Akronim", "Naziv", "Financijer", "Voditelj", "Status",
+                "Pocetak", "Zavrsetak", "Nabavljeno opreme", "Koristenja", "Sati",
+                "Uzoraka"])
+    if d.empty:
+        st.info("Nema odobrenih istrazivackih projekata.")
+    else:
+        d["Sati"] = d["Sati"].fillna(0)
+        prikaz = d.drop(columns=["id"])
+        st.dataframe(prikaz, use_container_width=True, hide_index=True)
+        preuzmi(prikaz, "istrazivacki_projekti.csv")
+
+        st.divider()
+        izbor_ip = st.selectbox("Detalji projekta", range(len(d)),
+                                format_func=lambda i: f"{d['Oznaka'][i]}  ·  "
+                                                      f"{d['Akronim'][i] or d['Naziv'][i]}")
+        pid, akr = int(d["id"][izbor_ip]), d["Akronim"][izbor_ip]
+
+        st.markdown("**Oprema nabavljena na projektu**")
+        rows = fetch("""SELECT interna_oznaka, naziv, proizvodjac, model, datum_nabave, status
+                        FROM oprema WHERE %s IS NOT NULL AND projekt_nabave = %s
+                        ORDER BY naziv;""", (akr, akr))
+        d1 = df(rows, ["Inv. br.", "Oprema", "Proizvodjac", "Model", "Nabava", "Status"])
+        st.dataframe(d1, use_container_width=True, hide_index=True)
+        preuzmi(d1, f"oprema_{akr or pid}.csv")
+
+        st.markdown("**Koristenje opreme za projekt (odobreno, u razdoblju)**")
+        rows = fetch("""
+            SELECT o.naziv, o.interna_oznaka, o.projekt_nabave, k.podnositelj,
+                   k.vrijeme_od, k.vrijeme_do, k.sati_koristenja, k.materijal, k.opis
+            FROM koristenje_opreme k
+            JOIN oprema o ON o.id = k.oprema_id
+            WHERE k.projekt_id = %s AND k.status = 'odobreno'
+              AND k.vrijeme_od::date BETWEEN %s AND %s
+            ORDER BY k.vrijeme_od;""", (pid, od, do))
+        d2 = df(rows, ["Oprema", "Inv. br.", "Nabavljena na", "Podnositelj", "Od", "Do",
+                       "Sati", "Materijal", "Opis"])
+        if not d2.empty:
+            for c in ["Od", "Do"]:
+                d2[c] = d2[c].apply(lambda x: lokalno(x).strftime("%Y-%m-%d %H:%M") if x else "")
+        st.caption("Stupac *Nabavljena na* pokazuje i kad je projekt koristio opremu "
+                   "nabavljenu na drugom projektu.")
+        st.dataframe(d2, use_container_width=True, hide_index=True)
+        preuzmi(d2, f"koristenje_{akr or pid}.csv")
