@@ -3,7 +3,7 @@ Laboratorij za geotehniku — glavna aplikacija (ulazna datoteka).
 
 Izbornik se gradi prema ulozi prijavljene osobe (st.navigation):
   svi             — Pocetna, Zahtjev za opremu, Prijava kvara
-  projekti        — + Prijedlog projekta     (administrator ili znanstveno zvanje)
+  projekti        — + Upis projekta          (administrator ili znanstveno zvanje)
   administrator   — + sve administrativne stranice
 Stranice koje osoba ne smije koristiti ne vide se u izborniku.
 """
@@ -31,7 +31,7 @@ def pocetna():
         st.markdown(
             "- **📨 Zahtjev za opremu** — zahtjev za koristenje uredaja\n"
             "- **🛠️ Prijava kvara** — prijava kvara uredaja ili komponente\n"
-            "- **🗂️ Prijedlog projekta** — za administratore i osoblje u "
+            "- **🗂️ Upis projekta** — za administratore i osoblje u "
             "znanstveno-nastavnom zvanju (potrebna prijava)")
         if not prijavljen():
             st.caption("Ostale stranice vide se nakon prijave, prema ulozi.")
@@ -79,8 +79,8 @@ def pocetna():
 |---|---|---|
 | 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja | svi |
 | 🛠️ Prijava kvara | prijava kvara uredaja ili komponente | svi |
-| 🗂️ Prijedlog projekta | prijedlog istrazivackog projekta (HRZZ, NPOO, JICA ...) | admin, zvanje |
-| ✅ Odobravanje | zahtjevi za opremu i istrazivacki projekti | admin |
+| 🗂️ Upis projekta | upis istrazivackog projekta (HRZZ, NPOO, JICA ...), ceka odobrenje | admin, zvanje |
+| ✅ Odobravanje | zahtjevi za opremu (odbijeni se brisu) i istrazivacki projekti | admin |
 | 📥 Prijem uzorka | zaprimanje uzorka | admin |
 | ➕ Unos opreme | dodavanje uredaja u inventar | admin |
 | 🔧 Rjesavanje kvarova | zatvaranje kvara, povratak u upotrebu | admin |
@@ -110,7 +110,7 @@ opce = [
 izbornik = {"": opce}
 
 if smije_projekte():
-    izbornik["Projekti"] = [P("9_🗂️_Prijedlog_projekta.py", "Prijedlog projekta", "🗂️")]
+    izbornik["Projekti"] = [P("9_🗂️_Prijedlog_projekta.py", "Upis projekta", "🗂️")]
 
 if je_admin():
     izbornik["Administracija"] = [

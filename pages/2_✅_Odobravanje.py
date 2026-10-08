@@ -41,6 +41,11 @@ def odluci(zid, novi_status, tko):
                WHERE id = %s;""", (novi_status, tko, sada(), zid))
 
 
+def obrisi_zahtjev(zid):
+    """Odbijeni zahtjev se brise iz baze (ne ostaje u evidenciji koristenja)."""
+    execute("DELETE FROM koristenje_opreme WHERE id = %s AND status = 'na_cekanju';", (zid,))
+
+
 # =================== ISTRAZIVACKI PROJEKTI ===================
 def projekti_na_cekanju():
     return fetch("""
@@ -122,20 +127,30 @@ with tab_op:
                 odluci(zid, "odobreno", tko)
                 st.success(f"Zahtjev #{zid} odobren ({tko}).")
                 st.rerun()
-            if b2.button("❌ Odbij", key=f"no{zid}"):
-                odluci(zid, "odbijeno", tko)
-                st.warning(f"Zahtjev #{zid} odbijen ({tko}).")
+            if st.session_state.get("potvrdi_odbij") == zid:
+                st.warning("Odbijeni zahtjev se **brise iz baze**. Potvrdi:")
+                p1, p2, _ = st.columns([1, 1, 3])
+                if p1.button("🗑️ Da, odbij i obrisi", key=f"nook{zid}"):
+                    obrisi_zahtjev(zid)
+                    st.session_state.pop("potvrdi_odbij", None)
+                    st.toast(f"Zahtjev #{zid} odbijen i obrisan ({tko}).")
+                    st.rerun()
+                if p2.button("Odustani", key=f"nono{zid}"):
+                    st.session_state.pop("potvrdi_odbij", None)
+                    st.rerun()
+            elif b2.button("❌ Odbij", key=f"no{zid}"):
+                st.session_state["potvrdi_odbij"] = zid
                 st.rerun()
 
     st.divider()
-    with st.expander("📜 Nedavno odluceno"):
+    with st.expander("📜 Nedavno odobreno"):
         povijest = fetch("""
             SELECT k.id, o.naziv, k.podnositelj, coalesce(pr.akronim, pr.oznaka), k.status,
                    k.odobrio, k.datum_odobrenja
             FROM koristenje_opreme k
             JOIN oprema o ON o.id = k.oprema_id
             LEFT JOIN projekti pr ON pr.id = k.projekt_id
-            WHERE k.status IN ('odobreno','odbijeno')
+            WHERE k.status = 'odobreno'
             ORDER BY k.datum_odobrenja DESC NULLS LAST
             LIMIT 20;""")
         if povijest:
@@ -156,7 +171,7 @@ with tab_ip:
         st.stop()
 
     if not lista_ip:
-        st.success("🎉 Nema prijedloga projekata na cekanju.")
+        st.success("🎉 Nema upisanih projekata na cekanju.")
     else:
         st.caption(f"Na cekanju: **{len(lista_ip)}**")
 
@@ -198,7 +213,7 @@ with tab_ip:
                             st.error(f"Greska: {e}")
             if b2.button("❌ Odbij", key=f"ino{pid}"):
                 odluci_projekt(pid, "odbijeno", tko, napomena.strip() or None)
-                st.warning(f"Prijedlog {akr or ozn} odbijen ({tko}).")
+                st.warning(f"Projekt {akr or ozn} odbijen ({tko}).")
                 st.rerun()
 
     st.divider()

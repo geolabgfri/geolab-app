@@ -8,8 +8,8 @@ Ulazna datoteka: **`Pocetna.py`** (gradi izbornik prema ulozi prijavljene osobe)
 |---|---|---|
 | 📨 Zahtjev za opremu | podnošenje zahtjeva za korištenje uređaja (po želji vezano uz projekt) | svi |
 | 🛠️ Prijava kvara | brza prijava kvara — uređaj ide `u_servisu` | svi |
-| 🗂️ Prijedlog projekta | prijedlog istraživačkog projekta (HRZZ, NPOO, JICA ...) sa suradnicima | admin, zvanje |
-| ✅ Odobravanje | zahtjevi za opremu i istraživački projekti | admin |
+| 🗂️ Upis projekta | upis istraživačkog projekta (HRZZ, NPOO, JICA ...) sa suradnicima | admin, zvanje |
+| ✅ Odobravanje | zahtjevi za opremu (odbijeni se brišu) i istraživački projekti | admin |
 | 📥 Prijem uzorka | zaprimanje uzorka na odobreni projekt | admin |
 | ➕ Unos opreme | dodavanje novog uređaja u inventar | admin |
 | 🔧 Rješavanje kvarova | zatvaranje kvara — uređaj se vraća `u_uporabi` | admin |
@@ -22,8 +22,8 @@ Stupci u tablici `osoblje` (kvačica u Supabase Table Editoru; vrijedi od sljede
 | Stupac | Tko | Što dobiva |
 |---|---|---|
 | — (bez prijave) | svi | Zahtjev za opremu, Prijava kvara |
-| `znanstveno_zvanje` | doc., izv. prof., prof. | + Prijedlog projekta; može biti voditelj projekta |
-| `administrator` | voditelj, laborant | + Prijedlog projekta i sve administrativne stranice |
+| `znanstveno_zvanje` | doc., izv. prof., prof. | + Upis projekta; može biti voditelj projekta |
+| `administrator` | voditelj, laborant | + Upis projekta i sve administrativne stranice |
 
 Stranice bez ovlasti ne vide se u izborniku; svaka zaštićena stranica i sama provjerava
 ulogu (`auth.trazi_prijavu`).
@@ -52,7 +52,7 @@ i bilježi tko je odobrio / riješio.
 
 ## Projekti — jedna tablica, dvije vrste (`projekti.vrsta`)
 - `strucni` — posao za klijenta, otvara se kroz *Novi posao*
-- `istrazivacki` — znanstveni projekt, predlaže se kroz *Prijedlog projekta*, odobrava u
+- `istrazivacki` — znanstveni projekt, upisuje se kroz *Upis projekta*, odobrava u
   *Odobravanju*; klijent = financijer (tip `interni`); voditelj i suradnici u `projekt_suradnici`
 
 Na oba se vežu uzorci (*Prijem uzorka*) i korištenje opreme (*Zahtjev za opremu*).
@@ -66,6 +66,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
   `koristenje_opreme.projekt_id`
 - `sql/0.8.0_uloge_i_suradnici.sql` — uloge u `osoblje`, tablica `projekt_suradnici`
 - `sql/0.8.1_beta_oznaka.sql` — stupac `beta` (novi zapisi u prijelaznom razdoblju = testni)
+- `sql/0.8.2_brisanje_odbijenih.sql` — jednokratno brisanje ranije odbijenih zahtjeva (po želji)
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

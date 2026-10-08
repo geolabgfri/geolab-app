@@ -12,6 +12,14 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.8.2 — 2026-10-08
+- **🗂️ Prijedlog projekta → Upis projekta** (naziv stranice, gumb „Upiši projekt”, poruke)
+- **✅ Odobravanje** — odbijeni zahtjev za opremu se **briše iz baze** (uz potvrdu);
+  u evidenciji korištenja ostaju samo zahtjevi na čekanju i odobreni.
+  Povijest prikazuje nedavno odobrene zahtjeve
+- Baza: bez promjene strukture; postojeće odbijene zahtjeve po želji obriši s
+  `sql/0.8.2_brisanje_odbijenih.sql`
+
 ## 0.8.1 — 2026-10-07
 - **Oznaka BETA** — stupac `beta` u tablicama s unosima (korištenje opreme, kvarovi,
   uzorci, ispitivanja, projekti, suradnici, klijenti, oprema, komponente).

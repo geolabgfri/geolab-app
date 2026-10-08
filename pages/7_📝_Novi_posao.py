@@ -28,7 +28,7 @@ def ucitaj_klijente():
 
 @st.cache_data(ttl=60)
 def ucitaj_projekte():
-    """Strucni poslovi za dopunu (istrazivacki projekti idu kroz Prijedlog projekta)."""
+    """Strucni poslovi za dopunu (istrazivacki projekti idu kroz Upis projekta)."""
     try:
         return fetch("""SELECT p.id, p.oznaka, p.naziv, k.naziv, p.faza
                         FROM projekti p JOIN klijenti k ON k.id = p.klijent_id
@@ -108,7 +108,7 @@ def blok_dokumenta(naslov, kljuc, postojeci=None):
 # ---------------------------- SUCELJE ----------------------------
 st.title("📝 Novi posao / projekt")
 st.caption("Strucni posao za klijenta. Tok: upit → ponuda → narudžbenica → izvještaj.  "
-           "Istrazivacki projekt (HRZZ, NPOO, JICA ...) predlaze se na stranici Prijedlog projekta.")
+           "Istrazivacki projekt (HRZZ, NPOO, JICA ...) upisuje se na stranici Upis projekta.")
 
 try:
     klijenti = ucitaj_klijente()

@@ -1,4 +1,4 @@
-"""Prijedlog istrazivackog projekta — predlaze administrator ili osoba u znanstveno-nastavnom
+"""Upis istrazivackog projekta — upisuje administrator ili osoba u znanstveno-nastavnom
 zvanju (prijava obavezna); odobrava administrator na stranici Odobravanje.
 
 Upis ide u 'projekti' (vrsta='istrazivacki', status_odobrenja='na_cekanju').
@@ -21,7 +21,7 @@ st.set_page_config(page_title="Istrazivacki projekt", page_icon="🗂️")
 prikazi_verziju()
 
 # 🔒 administrator ili znanstveno-nastavno zvanje
-tko = trazi_prijavu("Prijedlog projekta", razina="projekti")
+tko = trazi_prijavu("Upis projekta", razina="projekti")
 
 
 @st.cache_data(ttl=300)
@@ -84,7 +84,7 @@ def spremi(d, klijent_id, nk_naziv, voditelj_id, suradnici_ids):
         conn.close()
 
 
-st.title("🗂️ Prijedlog istrazivackog projekta")
+st.title("🗂️ Upis istrazivackog projekta")
 st.caption("Znanstveni projekt (HRZZ, NPOO, JICA, EU ...). Aktivan je kad ga odobri "
            "voditelj ili laborant. Strucni posao za klijenta otvara se na stranici Novi posao.")
 
@@ -161,7 +161,7 @@ datum_do = c2.date_input("Zavrsetak", label_visibility="collapsed") if ima_do el
 opis = st.text_area("Opis — koja ispitivanja / oprema su predvideni u laboratoriju")
 
 st.divider()
-if st.button("📨 Posalji prijedlog", type="primary"):
+if st.button("📨 Upisi projekt", type="primary"):
     greske = []
     if not akronim.strip():
         greske.append("Upisi akronim projekta.")
@@ -190,7 +190,7 @@ if st.button("📨 Posalji prijedlog", type="primary"):
                 "suradnici": ", ".join(o[1] for o in suradnici) or "—",
                 "trajanje": f"{datum_od or '?'} – {datum_do or '?'}"}
             st.cache_data.clear()
-            st.success(f"✅ Prijedlog {konacna} je poslan i ceka odobrenje.")
+            st.success(f"✅ Projekt {konacna} je upisan i ceka odobrenje.")
         except Exception as e:
             poruka = str(e).lower()
             if "duplicate" in poruka or "unique" in poruka:
@@ -203,7 +203,7 @@ st.subheader("📧 Obavijest e-mailom")
 if "email" not in st.secrets:
     st.info("E-mail nije konfiguriran.")
 elif "prijedlog_ip" not in st.session_state:
-    st.caption("Prvo posalji prijedlog.")
+    st.caption("Prvo upisi projekt.")
 elif st.button("📧 Posalji e-mail voditelju i laborantu"):
     try:
         import yagmail
@@ -213,7 +213,7 @@ elif st.button("📧 Posalji e-mail voditelju i laborantu"):
                            st.secrets["email"]["app_password"])
         yag.send(to=rec,
                  subject=f"Novi istrazivacki projekt (na cekanju): {p['akronim']}",
-                 contents=(f"Prijedlog istrazivackog projekta {p['oznaka']}.\n\n"
+                 contents=(f"Upisan istrazivacki projekt {p['oznaka']} (ceka odobrenje).\n\n"
                            f"Akronim: {p['akronim']}\nNaziv: {p['naziv']}\n"
                            f"Financijer: {p['financijer']}  ·  sifra: {p['sifra'] or '—'}\n"
                            f"Voditelj: {p['voditelj']}\nSuradnici: {p['suradnici']}\n"
