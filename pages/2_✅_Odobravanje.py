@@ -50,7 +50,7 @@ def obrisi_zahtjev(zid):
 def projekti_na_cekanju():
     return fetch("""
         SELECT p.id, p.oznaka, p.akronim, p.naziv, p.sifra, k.naziv, p.voditelj,
-               p.datum_pocetka, p.datum_zavrsetka, p.opis, p.predlozio,
+               p.datum_pocetka, p.datum_zavrsetka, p.opis, p.predlozio, p.sazetak,
                (SELECT string_agg(o.ime_prezime, ', ' ORDER BY o.ime_prezime)
                   FROM projekt_suradnici ps JOIN osoblje o ON o.id = ps.osoblje_id
                  WHERE ps.projekt_id = p.id AND ps.uloga = 'suradnik')
@@ -175,7 +175,7 @@ with tab_ip:
     else:
         st.caption(f"Na cekanju: **{len(lista_ip)}**")
 
-    for (pid, ozn, akr, naziv, sifra, fin, vod, d_od, d_do, opis, predl, sur) in lista_ip:
+    for (pid, ozn, akr, naziv, sifra, fin, vod, d_od, d_do, opis, predl, sazetak, sur) in lista_ip:
         with st.container(border=True):
             st.markdown(f"**{akr or ozn}** — {naziv}")
             c1, c2 = st.columns(2)
@@ -184,8 +184,11 @@ with tab_ip:
             c1.write(f"✍️ Predlozio: {predl or '—'}")
             c2.write(f"📅 Trajanje: {d_od or '?'} – {d_do or '?'}")
             c2.write(f"👥 Suradnici: {sur or '—'}")
+            if sazetak:
+                with st.expander("📄 Sazetak projekta"):
+                    st.write(sazetak)
             if opis:
-                st.caption(f"📝 {opis}")
+                st.caption(f"🔬 Laboratorij: {opis}")
 
             c1, c2 = st.columns([2, 1])
             oznaka = c1.text_input("Oznaka (konacna) *", value=ozn, key=f"iozn{pid}",

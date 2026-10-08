@@ -12,6 +12,17 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.8.3 — 2026-10-08
+- **🗂️ Upis projekta**
+  - **Financijer** — padajući izbornik postojećih financijera (klijenti tipa `interni`)
+    ili „Drugi — upiši”
+  - **Voditelj** — padajući izbornik osoblja u znanstveno-nastavnom zvanju ili
+    „Drugi — upiši” (vanjski voditelj; ne upisuje se u `projekt_suradnici`)
+  - novo polje **Sažetak projekta**; dosadašnji opis preimenovan u
+    „Laboratorij — koja ispitivanja / oprema su predviđeni”
+- **✅ Odobravanje** — prikazuje sažetak projekta
+- Baza: `sql/0.8.3_sazetak_projekta.sql` (stupac `projekti.sazetak`)
+
 ## 0.8.2 — 2026-10-08
 - **🗂️ Prijedlog projekta → Upis projekta** (naziv stranice, gumb „Upiši projekt”, poruke)
 - **✅ Odobravanje** — odbijeni zahtjev za opremu se **briše iz baze** (uz potvrdu);
