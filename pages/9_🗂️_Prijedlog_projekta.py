@@ -66,8 +66,8 @@ def spremi(d, klijent_id, nk_naziv, voditelj_id, suradnici_ids):
                 INSERT INTO projekti
                     (klijent_id, oznaka, naziv, vrsta, akronim, sifra, voditelj,
                      datum_pocetka, datum_zavrsetka, sazetak, opis,
-                     status_odobrenja, predlozio, datum_otvaranja)
-                VALUES (%s,%s,%s,'istrazivacki',%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s)
+                     status_odobrenja, predlozio, datum_otvaranja, faza)
+                VALUES (%s,%s,%s,'istrazivacki',%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s,'u_tijeku')
                 RETURNING id;""",
                 (klijent_id, d["oznaka"], d["naziv"], d["akronim"], d["sifra"],
                  d["voditelj"], d["od"], d["do"], d["sazetak"], d["opis"], d["predlozio"],

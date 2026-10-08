@@ -4,7 +4,7 @@ Dvije kartice:
   * Zahtjevi za opremu        (koristenje_opreme)
   * Istrazivacki projekti     (projekti.vrsta='istrazivacki':
                                status_odobrenja na_cekanju -> odobreno / odbijeno;
-                               zavrsen = faza 'zavrseno')
+                               faza: u_tijeku -> zavrseno)
 """
 import os, sys
 
@@ -220,10 +220,10 @@ with tab_ip:
                 st.rerun()
 
     st.divider()
-    with st.expander("🟢 Aktivni istrazivacki projekti — oznaci zavrsenim"):
+    with st.expander("🟢 Istrazivacki projekti u tijeku — oznaci zavrsenim"):
         aktivni = projekti_aktivni()
         if not aktivni:
-            st.caption("Nema aktivnih projekata.")
+            st.caption("Nema projekata u tijeku.")
         for (pid, ozn, akr, fin, vod, d_do) in aktivni:
             c1, c2 = st.columns([4, 1])
             c1.write(f"**{akr}** ({ozn})  ·  {fin}  ·  {vod or '—'}  ·  do {d_do or '?'}")

@@ -12,6 +12,14 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.8.4 — 2026-10-08
+- Istraživački projekti dobivaju fazu **`u_tijeku`** (od upisa) → **`zavrseno`**
+  (gumb „Završen” u Odobravanju); više nemaju besmislenu fazu `upit`
+- Faze stručnih poslova (Novi posao) ostaju: upit → ponuda → narudžba → izvještaj → završeno
+- **📊 Pregledi → Istraživački projekti** — status „u tijeku” / „završen”
+- Baza: `sql/0.8.4_faza_u_tijeku.sql` (dopuna CHECK ograničenja za `faza`,
+  postojeći istraživački projekti → `u_tijeku`)
+
 ## 0.8.3 — 2026-10-08
 - **🗂️ Upis projekta**
   - **Financijer** — padajući izbornik postojećih financijera (klijenti tipa `interni`)

@@ -30,7 +30,7 @@ def lokalno(dt):
 #    glavna (X.0.0) -> veca promjena strukture baze
 #  0.x.x = razvojna faza; 1.0.0 = sluzbena, javna verzija
 # ---------------------------------------------------------------
-VERZIJA = "0.8.3"
+VERZIJA = "0.8.4"
 DATUM_VERZIJE = "2026-10-08"
 
 

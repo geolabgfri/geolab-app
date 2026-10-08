@@ -68,6 +68,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/0.8.1_beta_oznaka.sql` — stupac `beta` (novi zapisi u prijelaznom razdoblju = testni)
 - `sql/0.8.2_brisanje_odbijenih.sql` — jednokratno brisanje ranije odbijenih zahtjeva (po želji)
 - `sql/0.8.3_sazetak_projekta.sql` — stupac `projekti.sazetak`
+- `sql/0.8.4_faza_u_tijeku.sql` — faza `u_tijeku` za istraživačke projekte
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

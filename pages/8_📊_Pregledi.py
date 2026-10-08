@@ -239,7 +239,7 @@ with tabs[4]:
     st.subheader("Istrazivacki projekti — oprema, koristenje (u razdoblju) i uzorci")
     ip = fetch("""
         SELECT p.id, p.oznaka, p.akronim, p.naziv, k.naziv, p.voditelj,
-               CASE WHEN p.faza = 'zavrseno' THEN 'zavrsen' ELSE 'aktivan' END,
+               CASE WHEN p.faza = 'zavrseno' THEN 'zavrsen' ELSE 'u tijeku' END,
                p.datum_pocetka, p.datum_zavrsetka,
                (SELECT count(*) FROM oprema o
                  WHERE p.akronim IS NOT NULL AND o.projekt_nabave = p.akronim),
