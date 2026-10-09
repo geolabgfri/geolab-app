@@ -6,7 +6,9 @@ import streamlit as st
 from openpyxl import Workbook
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn, prikazi_verziju, sada
+import re
+
+from db import fetch, get_conn, prikazi_verziju, sada, TZ
 from obavijest import posalji, prikazi_status, email_osobe
 
 st.set_page_config(page_title="Zahtjev za opremu", page_icon="📨")
@@ -30,6 +32,12 @@ def ucitaj_osoblje():
 
 
 @st.cache_data(ttl=300)
+def ucitaj_id_osoblja():
+    """{ime_prezime: id} — za osoba_id (provoditelj iz tablice osoblje)."""
+    return {ime: i for (i, ime) in fetch("SELECT id, ime_prezime FROM osoblje;")}
+
+
+@st.cache_data(ttl=300)
 def ucitaj_ist_projekte():
     """Odobreni, nezavrseni projekti (istrazivacki prvi); prazno ako baza nije nadogradena."""
     try:
@@ -46,6 +54,8 @@ def ucitaj_ist_projekte():
 
 def spremi_zahtjev(oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
                    ip_id=None, provoditelj=None):
+    # osoba_id = tko provodi pokus (iz tablice osoblje); prazno za vanjske osobe
+    osoba_id = ucitaj_id_osoblja().get(provoditelj or podnositelj)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -53,10 +63,10 @@ def spremi_zahtjev(oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj,
                 INSERT INTO koristenje_opreme
                     (oprema_id, vrijeme_od, vrijeme_do, materijal,
                      potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status,
-                     projekt_id, provoditelj)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s);""",
+                     projekt_id, provoditelj, osoba_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s,%s);""",
                 (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
-                 ip_id, provoditelj))
+                 ip_id, provoditelj, osoba_id))
         conn.commit()
     finally:
         conn.close()
@@ -135,7 +145,7 @@ podnositelj = st.selectbox("Podnositelj", osobe + ["Ostalo (upisi)"],
 mail_podnositelja = email_osobe(podnositelj)
 if podnositelj == "Ostalo (upisi)":
     podnositelj = st.text_input("Ime podnositelja")
-    mail_podnositelja = st.text_input("Vas e-mail za kopiju (nije obavezno)",
+    mail_podnositelja = st.text_input("Vas e-mail *",
                                       placeholder="ime.prezime@...")
 
 isti = st.checkbox("Podnositelj je ujedno i provoditelj ispitivanja", value=True)
@@ -149,7 +159,8 @@ if not isti:
     if provoditelj == DRUGI:
         provoditelj = st.text_input("Ime i prezime provoditelja")
 
-v_od = datetime.combine(d1, t1); v_do = datetime.combine(d2, t2)
+# vrijeme je hrvatsko (Europe/Zagreb) — baza ga sprema ispravno bez obzira na zonu servera
+v_od = datetime.combine(d1, t1, tzinfo=TZ); v_do = datetime.combine(d2, t2, tzinfo=TZ)
 sati = round(max((v_do - v_od).total_seconds() / 3600, 0), 2)
 st.info(f"Trajanje: **{sati} h**")
 
@@ -159,6 +170,9 @@ if st.button("📨 Posalji zahtjev", type="primary"):
         st.error("Zavrsetak mora biti nakon pocetka.")
     elif not podnositelj:
         st.error("Upisi podnositelja.")
+    elif podnositelj not in osobe and not re.fullmatch(
+            r"[^@\s]+@[^@\s]+\.[^@\s]+", (mail_podnositelja or "").strip()):
+        st.error("Upisi ispravan e-mail podnositelja (npr. ime.prezime@student.uniri.hr).")
     elif not isti and not (provoditelj or "").strip():
         st.error("Upisi provoditelja ispitivanja.")
     else:

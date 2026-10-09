@@ -63,6 +63,20 @@ prema stupcu `osoblje.email` (pravilo `ime.prezime@gradri.uniri.hr`; iznimke ru�
 Na oba se vežu uzorci (*Prijem uzorka*) i korištenje opreme (*Zahtjev za opremu*).
 Oprema nabavljena na istraživačkom projektu: `oprema.projekt_nabave` = akronim projekta.
 
+## Korištenje opreme — tko je tko (`koristenje_opreme`)
+| Stupac | Značenje |
+|---|---|
+| `podnositelj` | ime osobe koja podnosi zahtjev i odgovara za njega (tekst) |
+| `provoditelj` | ime osobe koja radi na uređaju, ako nije podnositelj (tekst; prazno = podnositelj) — može biti i vanjska osoba (student, doktorand) |
+| `osoba_id` | provoditelj pokusa kao veza na `osoblje.id`; popunjava se automatski, prazno za vanjske osobe. Koristi se za provjere po osobi (npr. suradnici na projektu u `projekt_suradnici`) |
+| `odobrio`, `datum_odobrenja` | tko je i kada odobrio zahtjev |
+| `vrijeme_od`, `vrijeme_do`, `sati_koristenja` | stvarno vrijeme korištenja (po potrebi ispravljeno u Odobravanju) |
+| `plan_vrijeme_od`, `plan_vrijeme_do` | prvotno planirano vrijeme iz zahtjeva — popunjava se tek pri prvom ispravku trajanja |
+| `izmijenio`, `datum_izmjene` | tko je i kada ispravio trajanje |
+
+Odbijeni zahtjevi se brišu; u tablici ostaju samo zahtjevi na čekanju i odobreni.
+Vrijeme se sprema kao hrvatsko vrijeme (Europe/Zagreb).
+
 ## Promjene baze
 SQL skripte su u mapi `sql/`. Pokreću se jednom u Supabase → SQL Editor, **prije**
 objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara imena.
@@ -75,6 +89,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/0.8.3_sazetak_projekta.sql` — stupac `projekti.sazetak`
 - `sql/0.8.4_faza_u_tijeku.sql` — faza `u_tijeku` za istraživačke projekte
 - `sql/0.9.0_provoditelj_i_email.sql` — `koristenje_opreme.provoditelj`, `osoblje.email`
+- `sql/0.9.1_ispravak_trajanja.sql` — ispravak trajanja, popravak vremenske zone
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

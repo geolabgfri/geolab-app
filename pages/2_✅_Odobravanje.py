@@ -11,7 +11,9 @@ import os, sys
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, execute, prikazi_verziju, sada, lokalno
+from datetime import datetime
+
+from db import fetch, execute, prikazi_verziju, sada, lokalno, TZ
 from auth import trazi_prijavu
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
@@ -144,26 +146,77 @@ with tab_op:
                 st.rerun()
 
     st.divider()
-    with st.expander("📜 Nedavno odobreno"):
+    with st.expander("📜 Nedavno odobreno (zadnjih 5)"):
         povijest = fetch("""
             SELECT k.id, o.naziv, coalesce(k.provoditelj, k.podnositelj),
-                   coalesce(pr.akronim, pr.oznaka), k.status,
-                   k.odobrio, k.datum_odobrenja
+                   coalesce(pr.akronim, pr.oznaka), k.vrijeme_od, k.vrijeme_do,
+                   k.sati_koristenja, k.odobrio
             FROM koristenje_opreme k
             JOIN oprema o ON o.id = k.oprema_id
             LEFT JOIN projekti pr ON pr.id = k.projekt_id
             WHERE k.status = 'odobreno'
             ORDER BY k.datum_odobrenja DESC NULLS LAST
-            LIMIT 20;""")
+            LIMIT 5;""")
+        fmt = lambda t: lokalno(t).strftime("%d.%m.%Y. %H:%M") if t else "—"
         if povijest:
             st.dataframe(
                 [{"#": r[0], "Oprema": r[1], "Provoditelj": r[2], "Projekt": r[3] or "—",
-                  "Status": r[4], "Odlucio": r[5],
-                  "Kada": (lokalno(r[6]).strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
+                  "Od": fmt(r[4]), "Do": fmt(r[5]), "Sati": r[6], "Odobrio": r[7]}
                  for r in povijest],
                 use_container_width=True, hide_index=True)
         else:
-            st.caption("Jos nema odluka.")
+            st.caption("Jos nema odobrenih zahtjeva.")
+
+    # --- ispravak trajanja (pokus traje dulje / krace od planiranog) ---
+    with st.expander("✏️ Ispravak trajanja pokusa"):
+        st.caption("Za odobrene zahtjeve: upisi stvarno vrijeme. Prvotno planirano vrijeme "
+                   "ostaje zapisano u bazi (plan_vrijeme_od / plan_vrijeme_do).")
+        try:
+            za_ispravak = fetch("""
+                SELECT k.id, o.naziv, coalesce(k.provoditelj, k.podnositelj),
+                       k.vrijeme_od, k.vrijeme_do
+                FROM koristenje_opreme k JOIN oprema o ON o.id = k.oprema_id
+                WHERE k.status = 'odobreno'
+                  AND k.vrijeme_do >= now() - interval '90 days'
+                ORDER BY k.vrijeme_od DESC
+                LIMIT 50;""")
+        except Exception as e:
+            za_ispravak = []
+            st.caption(f"Nije dostupno: {e}")
+        if not za_ispravak:
+            st.caption("Nema odobrenih zahtjeva u zadnjih 90 dana.")
+        else:
+            fmt = lambda t: lokalno(t).strftime("%d.%m. %H:%M") if t else "—"
+            lab = [f"#{r[0]}  ·  {r[1]}  ·  {r[2]}  ·  {fmt(r[3])} – {fmt(r[4])}"
+                   for r in za_ispravak]
+            ii = st.selectbox("Zahtjev", range(len(lab)), format_func=lambda i: lab[i],
+                              key="isp_zahtjev")
+            zid, _n, _p, s_od, s_do = za_ispravak[ii]
+            s_od, s_do = lokalno(s_od), lokalno(s_do)
+            c1, c2 = st.columns(2)
+            n_d1 = c1.date_input("Stvarni pocetak", value=s_od.date(), key=f"isp_d1_{zid}")
+            n_t1 = c1.time_input("Vrijeme pocetka", value=s_od.time(), key=f"isp_t1_{zid}",
+                                 label_visibility="collapsed")
+            n_d2 = c2.date_input("Stvarni zavrsetak", value=s_do.date(), key=f"isp_d2_{zid}")
+            n_t2 = c2.time_input("Vrijeme zavrsetka", value=s_do.time(), key=f"isp_t2_{zid}",
+                                 label_visibility="collapsed")
+            n_od = datetime.combine(n_d1, n_t1, tzinfo=TZ)
+            n_do = datetime.combine(n_d2, n_t2, tzinfo=TZ)
+            n_sati = round(max((n_do - n_od).total_seconds() / 3600, 0), 2)
+            st.info(f"Novo trajanje: **{n_sati} h**")
+            if st.button("💾 Spremi ispravak", key=f"isp_spremi_{zid}"):
+                if n_do <= n_od:
+                    st.error("Zavrsetak mora biti nakon pocetka.")
+                else:
+                    execute("""UPDATE koristenje_opreme
+                               SET plan_vrijeme_od = coalesce(plan_vrijeme_od, vrijeme_od),
+                                   plan_vrijeme_do = coalesce(plan_vrijeme_do, vrijeme_do),
+                                   vrijeme_od = %s, vrijeme_do = %s, sati_koristenja = %s,
+                                   izmijenio = %s, datum_izmjene = %s
+                               WHERE id = %s;""",
+                            (n_od, n_do, n_sati, tko, sada(), zid))
+                    st.toast(f"Zahtjev #{zid}: trajanje ispravljeno na {n_sati} h ({tko}).")
+                    st.rerun()
 
 # ---------- kartica: istrazivacki projekti ----------
 with tab_ip:

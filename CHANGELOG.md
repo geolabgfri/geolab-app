@@ -12,6 +12,21 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.9.1 — 2026-10-09
+- **✅ Odobravanje → Nedavno odobreno** — zadnjih 5 zahtjeva; umjesto statusa prikazuje
+  vrijeme **Od – Do** i sate iz zahtjeva
+- **✅ Odobravanje → Ispravak trajanja pokusa** — za odobrene zahtjeve (zadnjih 90 dana)
+  upisuje se stvarni početak i završetak; sati se preračunaju. Prvotno planirano vrijeme
+  ostaje u `plan_vrijeme_od / plan_vrijeme_do`, bilježi se tko je i kada ispravio
+- **📨 Zahtjev za opremu** — podnositelj koji nije na popisu mora upisati ispravan e-mail
+- **Popravak vremenske zone** — vrijeme zahtjeva sprema se kao hrvatsko vrijeme; ranije se
+  zahtjev za 08:00 prikazivao kao 10:00. Postojeći zapisi ispravljaju se SQL skriptom
+- **`koristenje_opreme.osoba_id`** — stupac koji je postojao od početka, ali se nije koristio,
+  sada je **provoditelj pokusa** iz tablice `osoblje` (veza na `osoblje.id`); popunjava se
+  automatski, za vanjske osobe ostaje prazan (ime je u `provoditelj`). Osnova za budući dnevnik
+- Baza: `sql/0.9.1_ispravak_trajanja.sql` (uključuje vezu `osoba_id → osoblje` i popunu
+  postojećih zapisa)
+
 ## 0.9.0 — 2026-10-09
 - **📨 Zahtjev za opremu — podnositelj i provoditelj**: kvačica „Podnositelj je ujedno i
   provoditelj ispitivanja” (zadano DA); inače se bira provoditelj iz osoblja ili upisuje
