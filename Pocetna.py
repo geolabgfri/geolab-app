@@ -78,6 +78,7 @@ def pocetna():
 | Stranica | Cemu sluzi | Tko vidi |
 |---|---|---|
 | 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja | svi |
+| 👤 Moj pregled | moji zahtjevi, statusi i matrica koristenja po danima | prijavljeni |
 | 🛠️ Prijava kvara | prijava kvara uredaja ili komponente | svi |
 | 🗂️ Upis projekta | upis istrazivackog projekta (HRZZ, NPOO, JICA ...), ceka odobrenje | admin, zvanje |
 | ✅ Odobravanje | zahtjevi za opremu (odbijeni se brisu) i istrazivacki projekti | admin |
@@ -108,6 +109,9 @@ opce = [
     P("4_🛠️_Prijava_kvara.py", "Prijava kvara", "🛠️"),
 ]
 izbornik = {"": opce}
+
+if prijavljen():
+    izbornik["Moj pregled"] = [P("10_👤_Moj_pregled.py", "Moj pregled", "👤")]
 
 if smije_projekte():
     izbornik["Projekti"] = [P("9_🗂️_Prijedlog_projekta.py", "Upis projekta", "🗂️")]

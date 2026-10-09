@@ -7,6 +7,7 @@ Ulazna datoteka: **`Pocetna.py`** (gradi izbornik prema ulozi prijavljene osobe)
 | Stranica | Čemu služi | Tko vidi |
 |---|---|---|
 | 📨 Zahtjev za opremu | podnošenje zahtjeva za korištenje uređaja (po želji vezano uz projekt) | svi |
+| 👤 Moj pregled | moji zahtjevi (podnositelj ili provoditelj), statusi, matrica korištenja po danima | prijavljeni |
 | 🛠️ Prijava kvara | brza prijava kvara — uređaj ide `u_servisu` | svi |
 | 🗂️ Upis projekta | upis istraživačkog projekta (HRZZ, NPOO, JICA ...) sa suradnicima | admin, zvanje |
 | ✅ Odobravanje | zahtjevi za opremu (odbijeni se brišu) i istraživački projekti | admin |

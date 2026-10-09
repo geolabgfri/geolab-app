@@ -12,6 +12,16 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.10.0 — 2026-10-09
+- Nova stranica **👤 Moj pregled** (svaka prijavljena osoba): zahtjevi u kojima je osoba
+  podnositelj ili provoditelj (`osoba_id`)
+  - brojke: na čekanju, odobreno-predstoji, odrađeno (12 mj.), sati na opremi
+  - **matrica po danima** (kao GitHub): sati korištenja odrađenih zahtjeva, zadnjih 12 mjeseci
+  - zadnjih 15 zahtjeva sa statusom (na čekanju / odobreno · predstoji / odrađeno · sati)
+  - administrator može odabrati bilo koju osobu
+- `auth.trazi_prijavu` — nova razina `prijava` (bilo koja prijavljena osoba)
+- Baza: bez promjena
+
 ## 0.9.1 — 2026-10-09
 - **✅ Odobravanje → Nedavno odobreno** — zadnjih 5 zahtjeva; umjesto statusa prikazuje
   vrijeme **Od – Do** i sate iz zahtjeva

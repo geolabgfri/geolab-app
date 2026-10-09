@@ -25,6 +25,7 @@ import streamlit as st
 from db import fetch
 
 RAZINE = {
+    "prijava": "bilo koja prijavljena osoba",
     "admin": "administrator",
     "projekti": "administrator ili znanstveno-nastavno zvanje",
 }
@@ -108,7 +109,8 @@ def trazi_prijavu(naziv_stranice="ova stranica", razina="admin"):
         forma_prijave(naziv_stranice)
         st.stop()
 
-    ok = je_admin() if razina == "admin" else smije_projekte()
+    ok = (True if razina == "prijava"
+          else je_admin() if razina == "admin" else smije_projekte())
     if not ok:
         st.title("⛔ Nemas pristup")
         st.write(f"Stranica **{naziv_stranice}** trazi ulogu: "
