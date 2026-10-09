@@ -7,6 +7,7 @@ from openpyxl import Workbook
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada
+from obavijest import posalji, prikazi_status, email_osobe
 
 st.set_page_config(page_title="Zahtjev za opremu", page_icon="📨")
 prikazi_verziju()
@@ -44,26 +45,18 @@ def ucitaj_ist_projekte():
 
 
 def spremi_zahtjev(oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
-                   ip_id=None):
+                   ip_id=None, provoditelj=None):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            if ip_id:
-                cur.execute("""
-                    INSERT INTO koristenje_opreme
-                        (oprema_id, vrijeme_od, vrijeme_do, materijal,
-                         potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status,
-                         projekt_id)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s);""",
-                    (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
-                     ip_id))
-            else:
-                cur.execute("""
-                    INSERT INTO koristenje_opreme
-                        (oprema_id, vrijeme_od, vrijeme_do, materijal,
-                         potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju');""",
-                    (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati))
+            cur.execute("""
+                INSERT INTO koristenje_opreme
+                    (oprema_id, vrijeme_od, vrijeme_do, materijal,
+                     potrebe_ispitivanja, opis, podnositelj, sati_koristenja, status,
+                     projekt_id, provoditelj)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'na_cekanju',%s,%s);""",
+                (oprema_id, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
+                 ip_id, provoditelj))
         conn.commit()
     finally:
         conn.close()
@@ -85,9 +78,10 @@ def napravi_ics(z, v_od, v_do):
             f"DTSTAMP:{sada().strftime('%Y%m%dT%H%M%S')}\n"
             f"DTSTART:{v_od.strftime('%Y%m%dT%H%M%S')}\n"
             f"DTEND:{v_do.strftime('%Y%m%dT%H%M%S')}\n"
-            f"SUMMARY:{z['Oprema']} - {z['Podnositelj']}\n"
+            f"SUMMARY:{z['Oprema']} - {z['Provoditelj']}\n"
             "LOCATION:Laboratorij za geotehniku, Rijeka\n"
-            f"DESCRIPTION:Materijal: {z['Materijal']}\\nPotreba: {z['Potreba']}\n"
+            f"DESCRIPTION:Provoditelj: {z['Provoditelj']}\\nPodnositelj: {z['Podnositelj']}"
+            f"\\nMaterijal: {z['Materijal']}\\nPotreba: {z['Potreba']}\n"
             "BEGIN:VALARM\nTRIGGER:-PT30M\nACTION:DISPLAY\n"
             "DESCRIPTION:Podsjetnik\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR\n")
     return p
@@ -134,9 +128,26 @@ with c2:
     d2 = st.date_input("Datum zavrsetka"); t2 = st.time_input("Vrijeme zavrsetka")
 
 opis = st.text_area("Kratki opis ispitivanja")
-podnositelj = st.selectbox("Podnositelj", osobe + ["Ostalo (upisi)"])
+
+st.subheader("👤 Tko")
+podnositelj = st.selectbox("Podnositelj", osobe + ["Ostalo (upisi)"],
+                           help="Tko podnosi zahtjev i odgovara za njega.")
+mail_podnositelja = email_osobe(podnositelj)
 if podnositelj == "Ostalo (upisi)":
     podnositelj = st.text_input("Ime podnositelja")
+    mail_podnositelja = st.text_input("Vas e-mail za kopiju (nije obavezno)",
+                                      placeholder="ime.prezime@...")
+
+isti = st.checkbox("Podnositelj je ujedno i provoditelj ispitivanja", value=True)
+provoditelj, mail_provoditelja = None, None
+if not isti:
+    DRUGI = "Drugi — upisi (student, doktorand, vanjski suradnik)"
+    p_opcije = [o for o in osobe if o != podnositelj] + [DRUGI]
+    provoditelj = st.selectbox("Provoditelj ispitivanja", p_opcije,
+                               help="Tko ce raditi na uredaju.")
+    mail_provoditelja = email_osobe(provoditelj)
+    if provoditelj == DRUGI:
+        provoditelj = st.text_input("Ime i prezime provoditelja")
 
 v_od = datetime.combine(d1, t1); v_do = datetime.combine(d2, t2)
 sati = round(max((v_do - v_od).total_seconds() / 3600, 0), 2)
@@ -148,45 +159,38 @@ if st.button("📨 Posalji zahtjev", type="primary"):
         st.error("Zavrsetak mora biti nakon pocetka.")
     elif not podnositelj:
         st.error("Upisi podnositelja.")
+    elif not isti and not (provoditelj or "").strip():
+        st.error("Upisi provoditelja ispitivanja.")
     else:
+        prov = (provoditelj or "").strip() or None
         try:
-            spremi_zahtjev(oid, v_od, v_do, materijal, potreba, opis, podnositelj, sati, ip_id)
-            st.session_state["zapis"] = {
+            spremi_zahtjev(oid, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
+                           ip_id, prov)
+            z = {
                 "Inv. br.": inv_br or "", "Oprema": naziv_opreme,
                 "Odgovorna osoba": odg or "", "Materijal": materijal,
-                "Potreba": potreba, "Projekt": ip_akr, "Datum od": v_od.strftime("%Y-%m-%d %H:%M"),
+                "Potreba": potreba, "Projekt": ip_akr,
+                "Datum od": v_od.strftime("%Y-%m-%d %H:%M"),
                 "Datum do": v_do.strftime("%Y-%m-%d %H:%M"), "Sati": sati,
-                "Opis": opis, "Podnositelj": podnositelj, "Status": "na_cekanju"}
-            st.session_state["v_od"] = v_od; st.session_state["v_do"] = v_do
+                "Opis": opis, "Podnositelj": podnositelj,
+                "Provoditelj": prov or podnositelj, "Status": "na_cekanju"}
+            st.session_state["zapis"] = z
             st.success("✅ Zahtjev poslan i ceka odobrenje.")
-            st.dataframe([st.session_state["zapis"]], use_container_width=True)
+            st.dataframe([z], use_container_width=True)
+            # --- automatska obavijest (voditelj + laborant, kopija podnositelju/provoditelju)
+            posalji("mail_zahtjev",
+                    f"Novi zahtjev (na cekanju): {z['Oprema']}",
+                    (f"Novi zahtjev za koristenje opreme.\n\n"
+                     f"Podnositelj: {z['Podnositelj']}\n"
+                     f"Provoditelj: {z['Provoditelj']}\n"
+                     f"Oprema: {z['Oprema']} (inv. {z['Inv. br.']})\n"
+                     f"Projekt: {z.get('Projekt') or '—'}\n"
+                     f"Vrijeme: {z['Datum od']} - {z['Datum do']} ({z['Sati']} h)\n"
+                     f"Opis: {z['Opis']}\n\n"
+                     f"Zahtjev ceka odobrenje voditelja ili laboranta."),
+                    prilozi=[napravi_excel(z), napravi_ics(z, v_od, v_do)],
+                    cc=[mail_podnositelja, mail_provoditelja])
         except Exception as e:
             st.error(f"Greska: {e}")
 
-st.divider()
-st.subheader("📧 Obavijest e-mailom")
-if "email" not in st.secrets:
-    st.info("E-mail nije konfiguriran.")
-elif "zapis" not in st.session_state:
-    st.caption("Prvo posalji zahtjev.")
-else:
-    if st.button("📧 Posalji e-mail voditelju i laborantu"):
-        try:
-            import yagmail
-            z = st.session_state["zapis"]
-            xlsx = napravi_excel(z)
-            ics = napravi_ics(z, st.session_state["v_od"], st.session_state["v_do"])
-            rec = list(st.secrets["email"]["recipients"])
-            yag = yagmail.SMTP(st.secrets["email"]["sender"],
-                               st.secrets["email"]["app_password"])
-            yag.send(to=rec, subject=f"Novi zahtjev (na cekanju): {z['Oprema']}",
-                     contents=(f"Novi zahtjev za koristenje opreme.\n\n"
-                               f"Podnositelj: {z['Podnositelj']}\n"
-                               f"Oprema: {z['Oprema']} (inv. {z['Inv. br.']})\n"
-                               f"Projekt: {z.get('Projekt') or '—'}\n"
-                               f"Vrijeme: {z['Datum od']} - {z['Datum do']} ({z['Sati']} h)\n"
-                               f"Opis: {z['Opis']}\n\nOdobrite na stranici Odobravanje."),
-                     attachments=[xlsx, ics])
-            st.success(f"📤 Poslano na: {', '.join(rec)}")
-        except Exception as e:
-            st.error(f"Greska pri slanju: {e}")
+prikazi_status("mail_zahtjev")

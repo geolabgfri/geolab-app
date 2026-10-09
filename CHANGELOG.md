@@ -12,6 +12,21 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.9.0 — 2026-10-09
+- **📨 Zahtjev za opremu — podnositelj i provoditelj**: kvačica „Podnositelj je ujedno i
+  provoditelj ispitivanja” (zadano DA); inače se bira provoditelj iz osoblja ili upisuje
+  (student, doktorand, vanjski suradnik). Novi stupac `koristenje_opreme.provoditelj`
+  (prazno = isti kao podnositelj). Provoditelj u Odobravanju, e-mailu, kalendaru i Pregledima
+- **Automatske e-mail obavijesti** — Zahtjev za opremu, Prijava kvara i Upis projekta
+  šalju e-mail odmah pri spremanju (nema više posebnog gumba). Ako slanje ne uspije, zapis
+  ostaje spremljen, a nudi se „Pošalji e-mail ponovno”. Zajednički modul `obavijest.py`
+- **Kopija (cc)** — podnositelju, provoditelju, prijavitelju kvara, odnosno predlagatelju
+  i voditelju projekta, ako su u tablici `osoblje`. Podnositelj „Ostalo” može upisati
+  svoj e-mail za kopiju
+- Baza: `sql/0.9.0_provoditelj_i_email.sql` — stupac `osoblje.email`, popunjen po pravilu
+  `ime.prezime@gradri.uniri.hr` (mala slova, bez dijakritika, prvo prezime); iznimke se
+  ispravljaju ručno u Table Editoru
+
 ## 0.8.4 — 2026-10-08
 - Istraživački projekti dobivaju fazu **`u_tijeku`** (od upisa) → **`zavrseno`**
   (gumb „Završen” u Odobravanju); više nemaju besmislenu fazu `upit`

@@ -27,7 +27,7 @@ def zahtjevi(status):
         SELECT k.id, o.naziv, o.interna_oznaka, k.podnositelj,
                k.vrijeme_od, k.vrijeme_do, k.sati_koristenja,
                k.materijal, k.potrebe_ispitivanja, k.opis,
-               coalesce(pr.akronim, pr.oznaka)
+               coalesce(pr.akronim, pr.oznaka), k.provoditelj
         FROM koristenje_opreme k
         JOIN oprema o ON o.id = k.oprema_id
         LEFT JOIN projekti pr ON pr.id = k.projekt_id
@@ -107,11 +107,12 @@ with tab_op:
     else:
         st.caption(f"Na cekanju: **{len(lista)}**")
 
-    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis, ip_akr) in lista:
+    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis, ip_akr, prov) in lista:
         with st.container(border=True):
             st.markdown(f"**{naziv}**  ·  inv. {inv or '—'}")
             c1, c2 = st.columns(2)
             c1.write(f"👤 Podnositelj: **{podn or '—'}**")
+            c1.write(f"🔧 Provoditelj: **{prov}**" if prov else "🔧 Provoditelj: isti")
             c1.write(f"🧱 Materijal: {mat or '—'}")
             c1.write(f"🎯 Potreba: {potr or '—'}")
             if ip_akr:
@@ -145,7 +146,8 @@ with tab_op:
     st.divider()
     with st.expander("📜 Nedavno odobreno"):
         povijest = fetch("""
-            SELECT k.id, o.naziv, k.podnositelj, coalesce(pr.akronim, pr.oznaka), k.status,
+            SELECT k.id, o.naziv, coalesce(k.provoditelj, k.podnositelj),
+                   coalesce(pr.akronim, pr.oznaka), k.status,
                    k.odobrio, k.datum_odobrenja
             FROM koristenje_opreme k
             JOIN oprema o ON o.id = k.oprema_id
@@ -155,7 +157,7 @@ with tab_op:
             LIMIT 20;""")
         if povijest:
             st.dataframe(
-                [{"#": r[0], "Oprema": r[1], "Podnositelj": r[2], "Projekt": r[3] or "—",
+                [{"#": r[0], "Oprema": r[1], "Provoditelj": r[2], "Projekt": r[3] or "—",
                   "Status": r[4], "Odlucio": r[5],
                   "Kada": (lokalno(r[6]).strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
                  for r in povijest],

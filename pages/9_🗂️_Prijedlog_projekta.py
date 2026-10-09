@@ -16,6 +16,7 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada
+from obavijest import posalji, prikazi_status, email_osobe
 from auth import trazi_prijavu
 
 st.set_page_config(page_title="Istrazivacki projekt", page_icon="🗂️")
@@ -199,6 +200,19 @@ if st.button("📨 Upisi projekt", type="primary"):
                 "trajanje": f"{datum_od or '?'} – {datum_do or '?'}"}
             st.cache_data.clear()
             st.success(f"✅ Projekt {konacna} je upisan i ceka odobrenje.")
+            p = st.session_state["prijedlog_ip"]
+            posalji("mail_projekt",
+                    f"Novi istrazivacki projekt (na cekanju): {p['akronim']}",
+                    (f"Upisan istrazivacki projekt {p['oznaka']} (ceka odobrenje).\n\n"
+                     f"Akronim: {p['akronim']}\nNaziv: {p['naziv']}\n"
+                     f"Financijer: {p['financijer']}  ·  sifra: {p['sifra'] or '—'}\n"
+                     f"Voditelj: {p['voditelj']}\nSuradnici: {p['suradnici']}\n"
+                     f"Trajanje: {p['trajanje']}\n"
+                     f"Predlozio: {p['predlozio']}\n\n"
+                     f"Sazetak:\n{p['sazetak'] or '—'}\n\n"
+                     f"Laboratorij: {p['opis'] or '—'}\n\n"
+                     f"Odobrite na stranici Odobravanje."),
+                    cc=[email_osobe(tko), email_osobe(voditelj)])
         except Exception as e:
             poruka = str(e).lower()
             if "duplicate" in poruka or "unique" in poruka:
@@ -206,30 +220,4 @@ if st.button("📨 Upisi projekt", type="primary"):
             else:
                 st.error(f"Greska: {e}")
 
-st.divider()
-st.subheader("📧 Obavijest e-mailom")
-if "email" not in st.secrets:
-    st.info("E-mail nije konfiguriran.")
-elif "prijedlog_ip" not in st.session_state:
-    st.caption("Prvo upisi projekt.")
-elif st.button("📧 Posalji e-mail voditelju i laborantu"):
-    try:
-        import yagmail
-        p = st.session_state["prijedlog_ip"]
-        rec = list(st.secrets["email"]["recipients"])
-        yag = yagmail.SMTP(st.secrets["email"]["sender"],
-                           st.secrets["email"]["app_password"])
-        yag.send(to=rec,
-                 subject=f"Novi istrazivacki projekt (na cekanju): {p['akronim']}",
-                 contents=(f"Upisan istrazivacki projekt {p['oznaka']} (ceka odobrenje).\n\n"
-                           f"Akronim: {p['akronim']}\nNaziv: {p['naziv']}\n"
-                           f"Financijer: {p['financijer']}  ·  sifra: {p['sifra'] or '—'}\n"
-                           f"Voditelj: {p['voditelj']}\nSuradnici: {p['suradnici']}\n"
-                           f"Trajanje: {p['trajanje']}\n"
-                           f"Predlozio: {p['predlozio']}\n\n"
-                           f"Sazetak:\n{p['sazetak'] or '—'}\n\n"
-                           f"Laboratorij: {p['opis'] or '—'}\n\n"
-                           f"Odobrite na stranici Odobravanje."))
-        st.success(f"📤 Poslano na: {', '.join(rec)}")
-    except Exception as e:
-        st.error(f"Greska pri slanju: {e}")
+prikazi_status("mail_projekt")

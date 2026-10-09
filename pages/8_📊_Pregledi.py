@@ -285,13 +285,14 @@ with tabs[4]:
         st.markdown("**Koristenje opreme za projekt (odobreno, u razdoblju)**")
         rows = fetch("""
             SELECT o.naziv, o.interna_oznaka, o.projekt_nabave, k.podnositelj,
-                   k.vrijeme_od, k.vrijeme_do, k.sati_koristenja, k.materijal, k.opis
+                   coalesce(k.provoditelj, k.podnositelj), k.vrijeme_od, k.vrijeme_do, k.sati_koristenja, k.materijal, k.opis
             FROM koristenje_opreme k
             JOIN oprema o ON o.id = k.oprema_id
             WHERE k.projekt_id = %s AND k.status = 'odobreno'
               AND k.vrijeme_od::date BETWEEN %s AND %s
             ORDER BY k.vrijeme_od;""", (pid, od, do))
-        d2 = df(rows, ["Oprema", "Inv. br.", "Nabavljena na", "Podnositelj", "Od", "Do",
+        d2 = df(rows, ["Oprema", "Inv. br.", "Nabavljena na", "Podnositelj", "Provoditelj",
+                       "Od", "Do",
                        "Sati", "Materijal", "Opis"])
         if not d2.empty:
             for c in ["Od", "Do"]:

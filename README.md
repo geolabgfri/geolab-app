@@ -50,6 +50,11 @@ recipients = ["voditelj@...", "laborant@..."]
 **Ime u `[pristup]` mora biti TOČNO kao u tablici `osoblje`** — po njemu se čitaju uloge
 i bilježi tko je odobrio / riješio.
 
+## E-mail obavijesti
+Zahtjev za opremu, Prijava kvara i Upis projekta šalju obavijest automatski pri spremanju
+(`obavijest.py`): primatelji su `[email] recipients`, a kopiju dobivaju uključene osobe
+prema stupcu `osoblje.email` (pravilo `ime.prezime@gradri.uniri.hr`; iznimke ručno).
+
 ## Projekti — jedna tablica, dvije vrste (`projekti.vrsta`)
 - `strucni` — posao za klijenta, otvara se kroz *Novi posao*
 - `istrazivacki` — znanstveni projekt, upisuje se kroz *Upis projekta*, odobrava u
@@ -69,6 +74,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/0.8.2_brisanje_odbijenih.sql` — jednokratno brisanje ranije odbijenih zahtjeva (po želji)
 - `sql/0.8.3_sazetak_projekta.sql` — stupac `projekti.sazetak`
 - `sql/0.8.4_faza_u_tijeku.sql` — faza `u_tijeku` za istraživačke projekte
+- `sql/0.9.0_provoditelj_i_email.sql` — `koristenje_opreme.provoditelj`, `osoblje.email`
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

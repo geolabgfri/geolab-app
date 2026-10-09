@@ -10,6 +10,7 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada
+from obavijest import posalji, prikazi_status, email_osobe
 
 st.set_page_config(page_title="Prijava kvara", page_icon="🛠️")
 prikazi_verziju()
@@ -194,38 +195,21 @@ if st.button("🛠️ Prijavi kvar", type="primary"):
                 st.warning(f"'{naziv_opreme}' je stavljen u servis.")
             if nova_komponenta:
                 st.info("Komponenta je dodana u registar.")
-            st.balloons()
+            k = st.session_state["kvar"]
+            posalji("mail_kvar",
+                    f"KVAR ({k['Hitnost']}): {k['Uredaj']} — {k['Komponenta']}",
+                    ("Prijavljen je kvar.\n\n"
+                     f"Uredaj: {k['Uredaj']} (inv. {k['Inv']})\n"
+                     f"Komponenta: {k['Komponenta']}\n"
+                     f"Serijski broj: {k['Serijski broj']}\n"
+                     f"Hitnost: {k['Hitnost']}\n"
+                     f"Sustav i dalje radi: {k['Sustav radi']}\n"
+                     f"Zamijenjeno s: {k['Zamijenjeno s']}\n"
+                     f"Prijavio: {k['Prijavio']} ({k['Datum']})\n\n"
+                     f"Opis kvara:\n{k['Opis']}\n"),
+                    cc=[email_osobe(prijavio)])
             st.cache_data.clear()
         except Exception as e:
             st.error(f"Greska: {e}")
 
-# --- E-mail (zgodno za slanje upita servisu) ---
-st.divider()
-st.subheader("📧 Obavijest / upit za popravak")
-if "email" not in st.secrets:
-    st.info("E-mail nije konfiguriran.")
-elif "kvar" not in st.session_state:
-    st.caption("Prvo prijavi kvar.")
-else:
-    if st.button("📧 Posalji e-mail"):
-        try:
-            import yagmail
-            k = st.session_state["kvar"]
-            rec = list(st.secrets["email"]["recipients"])
-            yag = yagmail.SMTP(st.secrets["email"]["sender"],
-                               st.secrets["email"]["app_password"])
-            yag.send(to=rec,
-                     subject=f"KVAR ({k['Hitnost']}): {k['Uredaj']} — {k['Komponenta']}",
-                     contents=(
-                         "Prijavljen je kvar.\n\n"
-                         f"Uredaj: {k['Uredaj']} (inv. {k['Inv']})\n"
-                         f"Komponenta: {k['Komponenta']}\n"
-                         f"Serijski broj: {k['Serijski broj']}\n"
-                         f"Hitnost: {k['Hitnost']}\n"
-                         f"Sustav i dalje radi: {k['Sustav radi']}\n"
-                         f"Zamijenjeno s: {k['Zamijenjeno s']}\n"
-                         f"Prijavio: {k['Prijavio']} ({k['Datum']})\n\n"
-                         f"Opis kvara:\n{k['Opis']}\n"))
-            st.success(f"📤 Poslano na: {', '.join(rec)}")
-        except Exception as e:
-            st.error(f"Greska pri slanju: {e}")
+prikazi_status("mail_kvar")
