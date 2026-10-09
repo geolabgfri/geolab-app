@@ -12,6 +12,11 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.10.1 — 2026-10-09
+- **👤 Moj pregled — matrica**: uz odrađene termine (puna boja po satima) prikazuje i
+  **odobrene buduće termine** (obrubljeno = plan); matrica obuhvaća zadnjih 12 mjeseci i
+  sljedeća 4 tjedna; današnji dan je označen; prelazak mišem pokazuje datum i sate
+
 ## 0.10.0 — 2026-10-09
 - Nova stranica **👤 Moj pregled** (svaka prijavljena osoba): zahtjevi u kojima je osoba
   podnositelj ili provoditelj (`osoba_id`)
