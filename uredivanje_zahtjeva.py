@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 
 from db import fetch, get_conn, lokalno, sada, TZ
+import zauzetost as zz
 
 MATERIJALI = ["Glina", "Prah", "Pijesak", "Sljunak", "Stijena", "Ostalo"]
 NAMJENE = ["Nastava", "Zavrsni rad", "Diplomski rad", "Doktorski rad",
@@ -221,11 +222,28 @@ def prikazi(tko):
                     + (f"  ·  trajanje {float(z_sati or 0):.1f} h → **{n_sati} h**"
                        if ("vrijeme_od" in promjene or "vrijeme_do" in promjene) else ""))
 
+        # --- preklapanje s drugim zahtjevima za isti uredaj ---
+        pk_odob, pk_cek = zz.razvrstaj(zz.preklapanja(n_opr, n_od, n_do, zid))
+        if pk_odob:
+            st.error("⛔ Termin se preklapa s odobrenim zahtjevom za isti uredaj:\n\n"
+                     + "\n".join(f"- {zz.opis(r)}" for r in pk_odob))
+        if pk_cek:
+            st.warning("⚠️ Termin trazi i zahtjev na cekanju:\n\n"
+                       + "\n".join(f"- {zz.opis(r)}" for r in pk_cek))
+        # odobreni (i ponovno aktivirani) zahtjev ne smije se preklapati s odobrenim
+        #   (samo ako se mijenja termin/uredaj ili se zahtjev ponovno aktivira)
+        mijenja_termin = any(p in promjene for p in ("oprema_id", "vrijeme_od", "vrijeme_do"))
+        blokira = bool(pk_odob) and (
+            (z_stat == "odobreno" and mijenja_termin) or z_stat == "otkazano")
+
         napomena = st.text_input("Napomena uz izmjenu *", key=k + "nap",
                                  placeholder="npr. pokus produljen zbog konsolidacije")
 
         b1, b2, _ = st.columns([1, 1, 2])
         def provjeri(treba_promjene=True):
+            if blokira:
+                st.error("Odaberi termin ili uredaj koji nije zauzet.")
+                return False
             if not napomena.strip():
                 st.error("Upisi napomenu uz izmjenu.")
                 return False

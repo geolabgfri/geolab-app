@@ -75,6 +75,10 @@ Oprema nabavljena na istraživačkom projektu: `oprema.projekt_nabave` = akronim
 | `plan_vrijeme_od`, `plan_vrijeme_do` | prvotno planirano vrijeme iz zahtjeva — popunjava se tek pri prvom ispravku trajanja |
 | `izmijenio`, `datum_izmjene` | tko je i kada ispravio trajanje |
 
+**Zauzetost:** odobreni termini istog uređaja ne smiju se preklapati (provjera u aplikaciji
+i ograničenje `koristenje_opreme_bez_preklapanja` u bazi); preklapanje sa zahtjevom na
+čekanju samo upozorava.
+
 Statusi: `na_cekanju` → `odobreno` (ili odbijen = obrisan); odobreni se može `otkazano`
 i ponovno aktivirati. Otkazani ostaju u evidenciji, ali ne ulaze u sate ni kalendar.
 
@@ -97,6 +101,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/0.9.0_provoditelj_i_email.sql` — `koristenje_opreme.provoditelj`, `osoblje.email`
 - `sql/0.9.1_ispravak_trajanja.sql` — ispravak trajanja, popravak vremenske zone
 - `sql/0.11.0_uredivanje_zahtjeva.sql` — status `otkazano`, tablica `koristenje_opreme_izmjene`
+- `sql/0.12.0_bez_preklapanja.sql` — odobreni termini istog uređaja ne smiju se preklapati
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, execute, prikazi_verziju, sada, lokalno
 from auth import trazi_prijavu
 import uredivanje_zahtjeva
+import zauzetost as zz
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
 prikazi_verziju()
@@ -28,7 +29,7 @@ def zahtjevi(status):
         SELECT k.id, o.naziv, o.interna_oznaka, k.podnositelj,
                k.vrijeme_od, k.vrijeme_do, k.sati_koristenja,
                k.materijal, k.potrebe_ispitivanja, k.opis,
-               coalesce(pr.akronim, pr.oznaka), k.provoditelj
+               coalesce(pr.akronim, pr.oznaka), k.provoditelj, k.oprema_id
         FROM koristenje_opreme k
         JOIN oprema o ON o.id = k.oprema_id
         LEFT JOIN projekti pr ON pr.id = k.projekt_id
@@ -108,7 +109,8 @@ with tab_op:
     else:
         st.caption(f"Na cekanju: **{len(lista)}**")
 
-    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis, ip_akr, prov) in lista:
+    for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis, ip_akr, prov,
+         opr_id) in lista:
         with st.container(border=True):
             st.markdown(f"**{naziv}**  ·  inv. {inv or '—'}")
             c1, c2 = st.columns(2)
@@ -123,12 +125,28 @@ with tab_op:
             c2.write(f"⏳ Trajanje: {sati or 0} h")
             if opis:
                 st.caption(f"📝 {opis}")
+            pk_odob, pk_cek = zz.razvrstaj(zz.preklapanja(opr_id, v_od, v_do, zid))
+            if pk_odob:
+                st.error("⛔ Preklapa se s VEC ODOBRENIM terminom — ne moze se odobriti:\n\n"
+                         + "\n".join(f"- {zz.opis(r)}" for r in pk_odob))
+            if pk_cek:
+                st.warning("⚠️ Isti termin trazi i drugi zahtjev na cekanju — odobri samo jedan:\n\n"
+                           + "\n".join(f"- {zz.opis(r)}" for r in pk_cek))
 
             b1, b2, _ = st.columns([1, 1, 3])
             if b1.button("✅ Odobri", key=f"ok{zid}", type="primary"):
-                odluci(zid, "odobreno", tko)
-                st.success(f"Zahtjev #{zid} odobren ({tko}).")
-                st.rerun()
+                if zz.razvrstaj(zz.preklapanja(opr_id, v_od, v_do, zid))[0]:
+                    st.error("Termin je u medjuvremenu zauzet — zahtjev nije odobren.")
+                else:
+                    try:
+                        odluci(zid, "odobreno", tko)
+                        st.success(f"Zahtjev #{zid} odobren ({tko}).")
+                        st.rerun()
+                    except Exception as e:
+                        if "exclu" in str(e).lower() or "zauzet" in str(e).lower():
+                            st.error("Termin se preklapa s odobrenim — zahtjev nije odobren.")
+                        else:
+                            raise
             if st.session_state.get("potvrdi_odbij") == zid:
                 st.warning("Odbijeni zahtjev se **brise iz baze**. Potvrdi:")
                 p1, p2, _ = st.columns([1, 1, 3])

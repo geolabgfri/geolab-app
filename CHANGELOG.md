@@ -12,6 +12,19 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.12.0 — 2026-10-12
+- **Zauzetost opreme** (novi modul `zauzetost.py`) — termini istog uređaja ne smiju se preklapati
+  - **📨 Zahtjev za opremu**: nakon odabira uređaja prikazuju se zauzeti termini u sljedećih
+    30 dana (🔴 odobreno, 🟡 na čekanju); preklapanje s **odobrenim** = zabrana slanja,
+    s **na čekanju** = upozorenje (zahtjev se šalje)
+  - **✅ Odobravanje**: kartica upozorava na preklapanja; odobrenje preklapanja s već
+    odobrenim terminom se odbija
+  - **Uređivanje zahtjeva**: ista provjera pri promjeni termina/uređaja i pri ponovnom
+    aktiviranju
+  - termini se smiju dodirivati (kraj jednog = početak drugog); otkazani ne zauzimaju uređaj
+- Baza: `sql/0.12.0_bez_preklapanja.sql` — ograničenje u bazi (odobreni termini istog
+  uređaja ne mogu se preklapati ni ručnim unosom); dodaje se samo ako postojećih preklapanja nema
+
 ## 0.11.0 — 2026-10-12
 - **✅ Odobravanje → Uređivanje zahtjeva** (zamjenjuje „Ispravak trajanja”), samo administrator:
   - filtri: osoba (podnositelj ili provoditelj), uređaj, razdoblje, status

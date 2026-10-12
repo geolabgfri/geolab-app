@@ -10,6 +10,7 @@ import re
 
 from db import fetch, get_conn, prikazi_verziju, sada, TZ
 from obavijest import posalji, prikazi_status, email_osobe
+import zauzetost as zz
 
 st.set_page_config(page_title="Zahtjev za opremu", page_icon="📨")
 prikazi_verziju()
@@ -112,6 +113,16 @@ labele = [f"{n}  ·  inv. {i or '—'}" for (_id, i, n, _o) in oprema_rows]
 idx = st.selectbox("Oprema", range(len(labele)), format_func=lambda i: labele[i])
 oid, inv_br, naziv_opreme, odg = oprema_rows[idx]
 
+# --- zauzetost odabranog uredaja ---
+zauzeto = zz.zauzeti_termini(oid, 30)
+if zauzeto:
+    with st.expander(f"📅 Zauzetost uredaja — sljedecih 30 dana ({len(zauzeto)})", expanded=True):
+        for r in zauzeto:
+            st.write(("🔴 " if r[1] == "odobreno" else "🟡 ") + zz.opis(r))
+        st.caption("🔴 odobreno — termin je zauzet  ·  🟡 na cekanju — netko je vec trazio termin")
+else:
+    st.caption("📅 Uredaj nema zakazanih termina u sljedecih 30 dana.")
+
 materijal = st.selectbox("Vrsta materijala",
                          ["Glina", "Prah", "Pijesak", "Sljunak", "Stijena", "Ostalo"])
 potreba = st.selectbox("Za koje potrebe",
@@ -175,8 +186,12 @@ if st.button("📨 Posalji zahtjev", type="primary"):
         st.error("Upisi ispravan e-mail podnositelja (npr. ime.prezime@student.uniri.hr).")
     elif not isti and not (provoditelj or "").strip():
         st.error("Upisi provoditelja ispitivanja.")
+    elif (odob := zz.razvrstaj(zz.preklapanja(oid, v_od, v_do))[0]):
+        st.error("⛔ Uredaj je u tom terminu vec zauzet (odobreno). Odaberi drugi termin:\n\n"
+                 + "\n".join(f"- {zz.opis(r)}" for r in odob))
     else:
         prov = (provoditelj or "").strip() or None
+        cekaju = zz.razvrstaj(zz.preklapanja(oid, v_od, v_do))[1]
         try:
             spremi_zahtjev(oid, v_od, v_do, materijal, potreba, opis, podnositelj, sati,
                            ip_id, prov)
@@ -190,6 +205,10 @@ if st.button("📨 Posalji zahtjev", type="primary"):
                 "Provoditelj": prov or podnositelj, "Status": "na_cekanju"}
             st.session_state["zapis"] = z
             st.success("✅ Zahtjev poslan i ceka odobrenje.")
+            if cekaju:
+                st.warning("⚠️ Za ovaj termin vec postoji zahtjev na cekanju — odobrit ce se samo "
+                           "jedan. Ako mozes, odaberi drugi termin:\n\n"
+                           + "\n".join(f"- {zz.opis(r)}" for r in cekaju))
             st.dataframe([z], use_container_width=True)
             # --- automatska obavijest (voditelj + laborant, kopija podnositelju/provoditelju)
             posalji("mail_zahtjev",
