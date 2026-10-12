@@ -30,8 +30,8 @@ def lokalno(dt):
 #    glavna (X.0.0) -> veca promjena strukture baze
 #  0.x.x = razvojna faza; 1.0.0 = sluzbena, javna verzija
 # ---------------------------------------------------------------
-VERZIJA = "0.10.1"
-DATUM_VERZIJE = "2026-10-09"
+VERZIJA = "0.10.2"
+DATUM_VERZIJE = "2026-10-12"
 
 
 BETA = VERZIJA.startswith("0.")   # razvojna faza: novi unosi su testni (beta)

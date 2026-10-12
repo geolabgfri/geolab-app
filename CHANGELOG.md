@@ -12,6 +12,11 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.10.2 — 2026-10-12
+- **👤 Moj pregled** — umjesto godišnje matrice **kalendar zadnja 4 i sljedeća 4 tjedna**
+  (redak = tjedan, pon–ned); kućice s brojem dana i satima (odrađeno puna boja, plan obrub),
+  današnji dan istaknut
+
 ## 0.10.1 — 2026-10-09
 - **👤 Moj pregled — matrica**: uz odrađene termine (puna boja po satima) prikazuje i
   **odobrene buduće termine** (obrubljeno = plan); matrica obuhvaća zadnjih 12 mjeseci i
