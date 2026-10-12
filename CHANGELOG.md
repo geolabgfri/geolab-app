@@ -12,6 +12,21 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 0.11.0 — 2026-10-12
+- **✅ Odobravanje → Uređivanje zahtjeva** (zamjenjuje „Ispravak trajanja”), samo administrator:
+  - filtri: osoba (podnositelj ili provoditelj), uređaj, razdoblje, status
+  - izmjena: uređaj, projekt, podnositelj, provoditelj, početak, završetak, materijal,
+    namjena, opis; sati se preračunaju; obavezna napomena
+  - **Otkaži zahtjev** (status `otkazano` — ostaje u evidenciji, ne ulazi u sate ni kalendar)
+    i **Ponovno aktiviraj** (traži novi termin i napomenu → `odobreno`)
+  - **povijest izmjena** ispod zahtjeva
+- Nova tablica **`koristenje_opreme_izmjene`** — trag izmjena za ISO: redak po promijenjenom
+  polju (staro → novo, tko, kada, napomena); retci se nikad ne mijenjaju ni brišu
+- **👤 Moj pregled** — prikazuje i otkazane zahtjeve
+- Baza: `sql/0.11.0_uredivanje_zahtjeva.sql` (status `otkazano`, nova tablica);
+  `sql/1.0.0_kraj_bete.sql` dopunjen novom tablicom
+- Novi modul `uredivanje_zahtjeva.py`
+
 ## 0.10.2 — 2026-10-12
 - **👤 Moj pregled** — umjesto godišnje matrice **kalendar zadnja 4 i sljedeća 4 tjedna**
   (redak = tjedan, pon–ned); kućice s brojem dana i satima (odrađeno puna boja, plan obrub),

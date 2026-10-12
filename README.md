@@ -75,7 +75,12 @@ Oprema nabavljena na istraživačkom projektu: `oprema.projekt_nabave` = akronim
 | `plan_vrijeme_od`, `plan_vrijeme_do` | prvotno planirano vrijeme iz zahtjeva — popunjava se tek pri prvom ispravku trajanja |
 | `izmijenio`, `datum_izmjene` | tko je i kada ispravio trajanje |
 
-Odbijeni zahtjevi se brišu; u tablici ostaju samo zahtjevi na čekanju i odobreni.
+Statusi: `na_cekanju` → `odobreno` (ili odbijen = obrisan); odobreni se može `otkazano`
+i ponovno aktivirati. Otkazani ostaju u evidenciji, ali ne ulaze u sate ni kalendar.
+
+**Trag izmjena (ISO):** svaka izmjena zahtjeva u Odobravanju → Uređivanje zahtjeva zapisuje
+se u `koristenje_opreme_izmjene` (polje, staro → novo, tko, kada, napomena). Tablica se samo
+nadopunjuje; retci se ne mijenjaju ni brišu.
 Vrijeme se sprema kao hrvatsko vrijeme (Europe/Zagreb).
 
 ## Promjene baze
@@ -91,6 +96,7 @@ objave te verzije aplikacije. Skripte prije prenumeriranja zadržale su stara im
 - `sql/0.8.4_faza_u_tijeku.sql` — faza `u_tijeku` za istraživačke projekte
 - `sql/0.9.0_provoditelj_i_email.sql` — `koristenje_opreme.provoditelj`, `osoblje.email`
 - `sql/0.9.1_ispravak_trajanja.sql` — ispravak trajanja, popravak vremenske zone
+- `sql/0.11.0_uredivanje_zahtjeva.sql` — status `otkazano`, tablica `koristenje_opreme_izmjene`
 - `sql/1.0.0_kraj_bete.sql` — **pokrenuti tek kod prelaska na 1.0.0**
 
 ## Verzija

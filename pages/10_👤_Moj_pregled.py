@@ -154,6 +154,8 @@ else:
             return "🔵 odobreno · predstoji"
         if st_ == "odobreno":
             return f"🟢 odradeno · {float(sati or 0):.1f} h"
+        if st_ == "otkazano":
+            return "⚪ otkazano"
         return st_
     st.dataframe(
         [{"Termin": f"{lokalno(r[0]):%d.%m.%Y. %H:%M} – {lokalno(r[1]):%H:%M}"

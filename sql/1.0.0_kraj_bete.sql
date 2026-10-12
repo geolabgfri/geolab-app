@@ -12,7 +12,7 @@ DO $$
 DECLARE t TEXT;
 BEGIN
     FOREACH t IN ARRAY ARRAY[
-        'koristenje_opreme', 'kvarovi_opreme', 'uzorci', 'ispitivanja',
+        'koristenje_opreme', 'koristenje_opreme_izmjene', 'kvarovi_opreme', 'uzorci', 'ispitivanja',
         'projekti', 'projekt_suradnici', 'klijenti', 'oprema', 'komponente'
     ]
     LOOP
@@ -26,7 +26,7 @@ END $$;
 -- DO $$
 -- DECLARE t TEXT;
 -- BEGIN
---     FOREACH t IN ARRAY ARRAY['koristenje_opreme','kvarovi_opreme','uzorci','ispitivanja',
+--     FOREACH t IN ARRAY ARRAY['koristenje_opreme','koristenje_opreme_izmjene','kvarovi_opreme','uzorci','ispitivanja',
 --                              'projekti','projekt_suradnici','klijenti','oprema','komponente']
 --     LOOP
 --         IF to_regclass('public.' || t) IS NOT NULL THEN
@@ -37,6 +37,7 @@ END $$;
 
 -- 2B) Obrisi beta zapise (redoslijed: prvo ovisni zapisi, pa oni na koje se vezu)
 -- DELETE FROM ispitivanja       WHERE beta;
+-- DELETE FROM koristenje_opreme_izmjene WHERE beta;
 -- DELETE FROM koristenje_opreme WHERE beta;
 -- DELETE FROM kvarovi_opreme    WHERE beta;
 -- DELETE FROM uzorci            WHERE beta;
